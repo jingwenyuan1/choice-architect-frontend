@@ -114,9 +114,6 @@
     const NUM_COLS = 5;
     const BATCH    = 30;
 
-    // Variety of portrait aspect ratios (height ÷ width > 1)
-    const ASPECTS = [1.25, 1.35, 1.5, 1.65, 1.8, 2.0, 1.2, 1.4, 1.55, 1.9];
-
     const QUERIES = [
       'fashion outfit', 'dress', 'casual clothing', 'formal wear',
       'street style', 'accessories', 'jeans', 'jacket', 'blouse top',
@@ -158,29 +155,94 @@
       });
     }, { rootMargin: '0px 0px 800px 0px' });
 
+    // Generates an SVG feTurbulence grain texture.
+    // Remaps continuous noise to ±1.5% luminance variance around #fdfcf8 (253,252,248)
+    // with no hue shift and no visible dots or specks.
+    function grainLayer(seed) {
+      const s   = Math.round(seed);
+      // slope=0.03 → ±1.5% range; intercepts centre each channel on its base value
+      const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200">'
+        + '<filter id="g">'
+        + '<feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="4"'
+        + ' seed="' + s + '" stitchTiles="stitch" result="n"/>'
+        + '<feColorMatrix in="n" type="saturate" values="0" result="gs"/>'
+        + '<feComponentTransfer in="gs">'
+        + '<feFuncR type="linear" slope="0.03" intercept="0.977"/>'
+        + '<feFuncG type="linear" slope="0.03" intercept="0.973"/>'
+        + '<feFuncB type="linear" slope="0.03" intercept="0.958"/>'
+        + '</feComponentTransfer>'
+        + '</filter>'
+        + '<rect width="200" height="200" filter="url(#g)"/>'
+        + '</svg>';
+      return 'url("data:image/svg+xml,' + encodeURIComponent(svg) + '")';
+    }
+
     function addItem(product, colIdx) {
-      const aspect = ASPECTS[Math.floor(Math.random() * ASPECTS.length)];
+      const rot = (Math.random() * 2 - 1).toFixed(2); // -1 to +1 deg
 
       const item = document.createElement('div');
       item.className = 'masonry-item';
-      item.style.aspectRatio     = `1 / ${aspect}`;
       item.style.transitionDelay = initialBatchDone ? `${200 + colIdx * 150}ms` : '0ms';
-      item.dataset.productId     = product.id;
+      item.style.setProperty('--rot', rot + 'deg');
+      item.dataset.productId = product.id;
+
+      const frame = document.createElement('div');
+      frame.className = Math.random() < 0.5 ? 'frame-regular' : 'frame-polaroid';
+
+      // Per-frame color variance: ±3 max (~1.2% of 255) around #fdfcf8
+      const dL = Math.round((Math.random() - 0.5) * 6);
+      frame.style.backgroundColor =
+        `rgb(${Math.min(255,253+dL)},${Math.min(255,252+dL)},${Math.min(255,248+dL)})`;
+
+      // Random rounded corners on frame only — 2–5px at 1920px (0.104–0.260vw)
+      frame.style.borderRadius = (0.104 + Math.random() * 0.156).toFixed(3) + 'vw';
+
+      // Paper grain via SVG feTurbulence (unique seed per frame)
+      const seed = (Math.random() * 9998 | 0) + 1;
+      const bgLayers = [grainLayer(seed)];
+
+      // Light stain on ~40% of frames — warm cream or cool grey smudge
+      if (Math.random() < 0.4) {
+        const sx  = (20 + Math.random() * 60).toFixed(1);
+        const sy  = (20 + Math.random() * 60).toFixed(1);
+        const sw  = (10 + Math.random() * 18).toFixed(1);
+        const sh  = (7  + Math.random() * 11).toFixed(1);
+        const a   = (0.04 + Math.random() * 0.05).toFixed(3);
+        const col = Math.random() < 0.55
+          ? `rgba(195,165,110,${a})`   // warm amber-cream
+          : `rgba(158,153,148,${a})`;  // cool grey-stone
+        bgLayers.push(
+          `radial-gradient(ellipse ${sw}% ${sh}% at ${sx}% ${sy}%, ${col} 0%, transparent 100%)`
+        );
+      }
+      frame.style.backgroundImage = bgLayers.join(', ');
+
+      const photo = document.createElement('div');
+      photo.className = 'polaroid-photo';
 
       const img = document.createElement('img');
       img.src         = product.image_url;
       img.alt         = product.name || '';
       img.loading     = 'lazy';
       img.crossOrigin = 'anonymous';
-      item.appendChild(img);
+
+      img.addEventListener('load', function () {
+        if (img.naturalWidth && img.naturalHeight) {
+          photo.style.aspectRatio = `${img.naturalWidth} / ${img.naturalHeight}`;
+        }
+      }, { once: true });
 
       const overlay = document.createElement('div');
       overlay.className = 'masonry-item-overlay';
       overlay.innerHTML = '<button class="masonry-open-btn">OPEN IN GENERATOR</button>';
-      item.appendChild(overlay);
+
+      photo.appendChild(img);
+      photo.appendChild(overlay);
+      frame.appendChild(photo);
+      item.appendChild(frame);
 
       document.getElementById(`masCol${colIdx}`).appendChild(item);
-      colH[colIdx] += aspect;
+      colH[colIdx] += 1.25; // fixed estimate for shortest-column balancing
 
       requestAnimationFrame(() => fadeObs.observe(item));
     }
