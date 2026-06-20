@@ -53,6 +53,13 @@
   --star-gold: #faf0eb;
 }
 
+/* scrollbar-gutter must be on html, not body — the document scrollbar is
+   owned by the root element in all major browsers, so putting it on body
+   alone has no effect on the layout-viewport width change. */
+html {
+  scrollbar-gutter: stable;
+}
+
 body {
   background-color: var(--cream);
   font-family: 'Manrope-Regular', sans-serif;
@@ -65,7 +72,7 @@ body {
    HOME PAGE
 ══════════════════════════════════════════════════════ */
 .home-header {
-  padding: 28px 40px;
+  padding: 18px 40px;
 }
 
 /* "The Choice Architect" logo — both pages */
@@ -123,11 +130,18 @@ body {
 
 /* ── Browse / masonry section ─────────────────────── */
 .browse-section {
+  position: relative;
+  overflow: hidden; /* prevents stars from causing horizontal scroll or overflowing edges */
   min-height: 100vh;
   padding: 2.5vw 2.35vw 4.17vw; /* 48px top, 45.1px sides, 80px bottom at 1920px */
+  background-color: #EFEEED;
+  background-image:
+    linear-gradient(to right, rgba(100, 150, 210, 0.18) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(100, 150, 210, 0.18) 1px, transparent 1px);
+  background-size: 38px 38px; /* fixed px — does not scale with viewport */
 }
 
-/* 5-column grid; columns centre their frame */
+/* 5-column masonry grid */
 .masonry-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -138,12 +152,13 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3.5vw;
+  gap: 0.7vw;               /* ~13px at 1920px */
 }
 
 /* ── Outer wrapper: fade-in + per-frame rotation ──── */
 .masonry-item {
-  width: 13.02vw;           /* 250px at 1920px */
+  position: relative;
+  width: 18.4vw;            /* ~353px at 1920px — ~13px gap between columns */
   opacity: 0;
   transform: translateY(14px) rotate(var(--rot, 0deg));
   transition: opacity 1.4s ease, transform 1.4s ease;
@@ -159,27 +174,75 @@ body {
 
 /* 1. Regular: uniform border, all four sides equal — 12px at 1920px */
 .frame-regular {
-  background-color: #fdfcf8;
+  position: relative;
+  background-color: #F2F1EC;
   background-repeat: no-repeat;
   background-size: 100% 100%;
-  padding: 0.625vw;
+  padding: 0.75vw;
 }
 
 /* 2. Polaroid: uniform top/sides, thick bottom tab — 12px / 40px at 1920px */
 .frame-polaroid {
-  background-color: #fdfcf8;
+  position: relative;
+  background-color: #F2F1EC;
   background-repeat: no-repeat;
   background-size: 100% 100%;
-  padding: 0.625vw 0.625vw 2.083vw;
+  padding: 0.75vw 0.75vw 3vw;
+}
+
+/* Continuous shadow border — box-sizing:border-box + inset:0 fills frame exactly.
+   border-width: thinner on top/left, thicker on right/bottom for directional depth.
+   border-color: lighter on top/left, darker on right/bottom via JS CSS variables.
+   filter:blur(0.5px) creates dark-adjacent-to-frame → lighter-outward gradient.
+   Total visible extent: 1px (border) + ~1px (blur spread) = ~2px max on right/bottom. */
+.frame-regular::after,
+.frame-polaroid::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  border-style: solid;
+  border-width: 0.5px 1px 1px 0.5px;             /* top right bottom left */
+  border-color:
+    var(--sh-light, rgba(246,250,255,0.15))        /* top */
+    var(--sh-dark,  rgba(114,114,110,0.30))        /* right */
+    var(--sh-dark,  rgba(114,114,110,0.30))        /* bottom */
+    var(--sh-light, rgba(246,250,255,0.15));       /* left */
+  border-radius: inherit;
+  filter: blur(0.5px);
+  pointer-events: none;
+  z-index: 1;
 }
 
 /* ── Photo area: overlay anchor, natural AR ───────── */
 .polaroid-photo {
   position: relative;
   overflow: hidden;
-  /* default portrait 3:4; JS updates to actual on load */
-  aspect-ratio: 3 / 4;
+  aspect-ratio: 3 / 4; /* default portrait; JS updates to native AR on load */
   background: #c8d8e8;
+}
+
+/* Photo well outline — heavier/darker on top+left (shadow side),
+   lighter on right+bottom (lit side). Renders above img via z-index.
+   border-width: top right bottom left
+   border-color: top right bottom left
+   Darker shade: rgba(114,114,110,0.55) — used on top and left
+   Lighter shade: rgba(114,114,110,0.22) — used on right and bottom */
+.polaroid-photo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  border-style: solid;
+  border-width: 0.7px 0.3px 0.3px 0.7px;
+  border-color:
+    rgba(114,114,110,0.30)   /* top */
+    rgba(246,250,255, 0.15)   /* right */
+    rgba(246,250,255,0.15)   /* bottom */
+    rgba(114,114,110,0.30);  /* left */
+  filter: blur(1px);
+  pointer-events: none;
+  z-index: 2;
 }
 
 .polaroid-photo img {
@@ -194,14 +257,14 @@ body {
   position: absolute;
   inset: 0;
   background: rgba(20, 14, 6, 0.45);
-  backdrop-filter: blur(5px);
-  -webkit-backdrop-filter: blur(5px);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
   opacity: 0;
   transition: opacity 0.22s ease;
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  padding-bottom: 22px;
+  padding-bottom: 1.146vw; /* 22px at 1920px */
   pointer-events: none;
 }
 
@@ -229,6 +292,48 @@ body {
 }
 
 .masonry-open-btn:hover { background: rgba(255, 250, 245, 0.12); }
+
+/* ── Decorative tape strips ─────────────────────────── */
+/* Positioned on frames that have extra vertical space above (prev item had extra gap).
+   z-index:2 keeps tape above the frame and its shadow (::after at z-index:1)
+   but below #starLayer (z-index:50) which lives outside the masonry stacking context. */
+.frame-tape {
+  position: absolute;
+  display: block;
+  pointer-events: none;
+  height: 4.688vw; /* 90px at 1920px */
+  width: auto;
+  z-index: 2;
+}
+
+/* ── Decorative star overlay layer ─────────────────── */
+/* Sits above all masonry stacking contexts; z-index:50 paints over every frame */
+#starLayer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  min-height: 100%;
+  pointer-events: none;
+  z-index: 50;
+  overflow: hidden;
+}
+
+/* ── Individual stars ──────────────────────────────── */
+.browse-star {
+  position: absolute;
+  pointer-events: none;
+  display: block;
+  opacity: 0;
+  transition: opacity 1.4s ease;
+  max-width: 175px;
+  max-height: 175px;
+}
+
+.browse-star.star-visible {
+  opacity: 1;
+}
+
 #masonrySentinel {
   height: 1px;
   width: 100%;
@@ -361,13 +466,17 @@ body {
   color: var(--dark);
 }
 
+.avatar-wrapper {
+  position: relative;
+  flex-shrink: 0;
+}
+
 .avatar-btn {
   width: 46px;
   height: 46px;
   border-radius: 50%;
   border: 1.5px solid var(--dark-mid);
   background: transparent;
-  flex-shrink: 0;
   cursor: pointer;
   transition: border-color 0.2s, color 0.2s;
   display: flex;
@@ -380,6 +489,38 @@ body {
 .avatar-btn:hover {
   border-color: var(--dark);
   color: var(--dark);
+}
+
+.avatar-dropdown {
+  display: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: var(--cream);
+  border: 1px solid rgba(49, 34, 12, 0.12);
+  border-radius: 10px;
+  min-width: 160px;
+  box-shadow: 0 6px 20px rgba(49, 34, 12, 0.12);
+  z-index: 500;
+  overflow: hidden;
+}
+
+.avatar-dropdown.is-open {
+  display: block;
+}
+
+.avatar-dropdown-item {
+  display: block;
+  padding: 11px 18px;
+  font-family: 'Manrope-Regular', sans-serif;
+  font-size: 14px;
+  color: var(--dark);
+  text-decoration: none;
+  transition: background 0.15s;
+}
+
+.avatar-dropdown-item:hover {
+  background: rgba(49, 34, 12, 0.06);
 }
 
 /* ══════════════════════════════════════════════════════
@@ -1264,6 +1405,53 @@ body {
   justify-content: center;
 }
 
+.save-outfit-item.is-pending {
+  background: rgba(49, 34, 12, 0.05);
+  border-color: var(--dark);
+}
+
+.save-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(49, 34, 12, 0.1);
+}
+
+.save-modal-cancel-btn {
+  background: transparent;
+  border: none;
+  font-family: 'Manrope-Regular', sans-serif;
+  font-size: 14px;
+  color: var(--dark-mid);
+  cursor: pointer;
+  padding: 8px 14px;
+  border-radius: 50px;
+  transition: color 0.15s;
+}
+
+.save-modal-cancel-btn:hover {
+  color: var(--dark);
+}
+
+.save-modal-confirm-btn {
+  background: var(--dark);
+  border: none;
+  font-family: 'Manrope-Regular', sans-serif;
+  font-size: 14px;
+  color: var(--cream);
+  cursor: pointer;
+  padding: 8px 16px;
+  border-radius: 50px;
+  transition: background 0.15s;
+}
+
+.save-modal-confirm-btn:hover {
+  background: var(--dark-mid);
+}
+
 /* ══════════════════════════════════════════════════════
    OUTFITS PAGE
 ══════════════════════════════════════════════════════ */
@@ -1734,7 +1922,9 @@ body {
    EXPLORE SECTION (bottom half of collection generator)
 ══════════════════════════════════════════════════════ */
 .top-half {
-  min-height: 100vh;
+  /* header (18px padding × 2 + 46px avatar = 82px) is now outside this div,
+     so subtract it so the first screen still fills exactly one viewport. */
+  min-height: calc(100vh - 82px);
 }
 
 .explore-section {

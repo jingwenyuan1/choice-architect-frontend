@@ -15,16 +15,23 @@
 
     <header class="home-header" style="display:flex;align-items:center;justify-content:space-between;">
       <a href="index.html" class="logo">The Choice Architect</a>
-      <a href="collections.html" class="avatar-btn" aria-label="My outfits">
-        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <circle cx="12" cy="8" r="4"/>
-          <path d="M4 20c0-4.4 3.6-8 8-8s8 3.6 8 8"/>
-        </svg>
-      </a>
+      <div class="avatar-wrapper">
+        <button class="avatar-btn" id="avatarBtn" aria-label="Profile menu" aria-expanded="false">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="8" r="4"/>
+            <path d="M4 20c0-4.4 3.6-8 8-8s8 3.6 8 8"/>
+          </svg>
+        </button>
+        <div class="avatar-dropdown" id="avatarDropdown">
+          <a href="collections.html" class="avatar-dropdown-item">My Outfits</a>
+          <a href="wishlist.html" class="avatar-dropdown-item">My Wishlist</a>
+          <a href="purchases.html" class="avatar-dropdown-item">My Purchases</a>
+        </div>
+      </div>
     </header>
 
     <main class="home-main">
-      <h1 class="hero-heading">What are you<br>designing today?</h1>
+      <h1 class="hero-heading">What are you<br>imagining today?</h1>
 
       <div class="home-search-wrapper">
         <form class="home-search-form" id="homeSearchForm">
@@ -63,6 +70,7 @@
        SECTION 2 — Masonry Browse
   ══════════════════════════════════════════════════ -->
   <section class="browse-section" id="browseSection">
+    <div id="starLayer"></div>
     <div class="masonry-grid" id="masonryGrid">
       <div class="masonry-col" id="masCol0"></div>
       <div class="masonry-col" id="masCol1"></div>
@@ -110,9 +118,16 @@
     // ══════════════════════════════════════════════════════════════════
     //  MASONRY BROWSE
     // ══════════════════════════════════════════════════════════════════
-    const API_BASE = 'https://the-choice-architect-production-36b0.up.railway.app';
-    const NUM_COLS = 5;
-    const BATCH    = 30;
+    const API_BASE  = 'https://the-choice-architect-production-36b0.up.railway.app';
+    const BATCH     = 30;
+    const STAR_IMGS = [
+      'stars/star%201.png','stars/star%202.png',
+      'stars/star%203.png','stars/star%204.png'
+    ];
+    const TAPE_IMGS = [
+      'tape/tape%201.png','tape/tape%202.png','tape/tape%203.png',
+      'tape/tape%204.png','tape/tape%205.png','tape/tape%206.png',
+    ];
 
     const QUERIES = [
       'fashion outfit', 'dress', 'casual clothing', 'formal wear',
@@ -121,7 +136,15 @@
       'luxury fashion', 'vintage clothing', 'sportswear', 'evening gown',
     ];
 
-    const colH       = new Array(NUM_COLS).fill(0); // relative column heights
+    const NUM_COLS = 5;
+    const colH     = new Array(NUM_COLS).fill(0);
+
+    function shortestCol() {
+      let min = Infinity, idx = 0;
+      for (let i = 0; i < NUM_COLS; i++) { if (colH[i] < min) { min = colH[i]; idx = i; } }
+      return idx;
+    }
+
     const shownIds   = new Set();
     let   pool       = [];
     let   poolIdx    = 0;
@@ -130,10 +153,38 @@
     let   queryIdx          = 0;
     let   initialBatchDone  = false;
 
-    function shortestCol() {
-      let min = Infinity, idx = 0;
-      for (let i = 0; i < NUM_COLS; i++) { if (colH[i] < min) { min = colH[i]; idx = i; } }
-      return idx;
+    // Tape placement: tracks whether the previous item in each column had extra marginBottom,
+    // which creates extra space above the next item — the qualifying criterion for tape.
+    const _prevHadExtraGap = new Array(NUM_COLS).fill(false);
+
+    // Star placement state — zone-based to keep ~3 stars visible per screen-height
+    let   _starCount  = 0;
+    let   _starLastAt = -7;                            // total item# of last star placed (any col)
+    const _starColAt  = new Array(NUM_COLS).fill(-12); // total item# of last star per column
+
+    function _starOverlapsItem(cx, cy, h, l, t, r, b) {
+      return cx + h > l && cx - h < r && cy + h > t && cy - h < b;
+    }
+    // Returns true if any already-placed star in the DOM touches the same frame as the candidate star.
+    // Reads positions live from the DOM rather than maintaining a persistent registry.
+    function _wouldShareFrame(cx, cy, half) {
+      const section     = document.getElementById('browseSection');
+      const sr          = section.getBoundingClientRect();
+      const vpW         = window.innerWidth || document.documentElement.clientWidth || 1920;
+      const placedStars = document.querySelectorAll('#starLayer .browse-star');
+      for (const frame of document.querySelectorAll('.masonry-item')) {
+        const ir = frame.getBoundingClientRect();
+        const fl = ir.left - sr.left, ft = ir.top - sr.top;
+        const fr = ir.right - sr.left, fb = ir.bottom - sr.top;
+        if (!_starOverlapsItem(cx, cy, half, fl, ft, fr, fb)) continue;
+        for (const s of placedStars) {
+          const sx  = parseFloat(s.style.left);
+          const sy  = parseFloat(s.style.top);
+          const spx = Math.min(parseFloat(s.style.width) * vpW / 100, 175);
+          if (_starOverlapsItem(sx, sy, spx / 2, fl, ft, fr, fb)) return true;
+        }
+      }
+      return false;
     }
 
     // Fade-in: fires when item enters viewport (negative bottom margin = item must be more visible)
@@ -143,6 +194,13 @@
           entry.target.classList.add('masonry-visible');
           fadeObs.unobserve(entry.target);
         }
+      });
+    }, { rootMargin: '0px 0px -40px 0px' });
+
+    // Star fade-in — same trigger as frame fade-in
+    const starFadeObs = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) { e.target.classList.add('star-visible'); starFadeObs.unobserve(e.target); }
       });
     }, { rootMargin: '0px 0px -40px 0px' });
 
@@ -160,16 +218,16 @@
     // with no hue shift and no visible dots or specks.
     function grainLayer(seed) {
       const s   = Math.round(seed);
-      // slope=0.03 → ±1.5% range; intercepts centre each channel on its base value
+      // slope=0.03 → ±1.5% range; intercepts centre each channel on #F2F1EC (242,241,236)
       const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200">'
         + '<filter id="g">'
         + '<feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="4"'
         + ' seed="' + s + '" stitchTiles="stitch" result="n"/>'
         + '<feColorMatrix in="n" type="saturate" values="0" result="gs"/>'
         + '<feComponentTransfer in="gs">'
-        + '<feFuncR type="linear" slope="0.03" intercept="0.977"/>'
-        + '<feFuncG type="linear" slope="0.03" intercept="0.973"/>'
-        + '<feFuncB type="linear" slope="0.03" intercept="0.958"/>'
+        + '<feFuncR type="linear" slope="0.03" intercept="0.949"/>'
+        + '<feFuncG type="linear" slope="0.03" intercept="0.945"/>'
+        + '<feFuncB type="linear" slope="0.03" intercept="0.925"/>'
         + '</feComponentTransfer>'
         + '</filter>'
         + '<rect width="200" height="200" filter="url(#g)"/>'
@@ -177,8 +235,9 @@
       return 'url("data:image/svg+xml,' + encodeURIComponent(svg) + '")';
     }
 
+
     function addItem(product, colIdx) {
-      const rot = (Math.random() * 2 - 1).toFixed(2); // -1 to +1 deg
+      const rot = (Math.random() * 2 - 1).toFixed(2);
 
       const item = document.createElement('div');
       item.className = 'masonry-item';
@@ -186,22 +245,35 @@
       item.style.setProperty('--rot', rot + 'deg');
       item.dataset.productId = product.id;
 
+      // ~30% of items get extra gap below — creates vertical rhythm variation
+      if (Math.random() < 0.30) {
+        item.style.marginBottom = (0.4 + Math.random() * 0.8).toFixed(2) + 'vw';
+      }
+
       const frame = document.createElement('div');
       frame.className = Math.random() < 0.5 ? 'frame-regular' : 'frame-polaroid';
 
-      // Per-frame color variance: ±3 max (~1.2% of 255) around #fdfcf8
-      const dL = Math.round((Math.random() - 0.5) * 6);
-      frame.style.backgroundColor =
-        `rgb(${Math.min(255,253+dL)},${Math.min(255,252+dL)},${Math.min(255,248+dL)})`;
+      // ~25% of frames appear slightly smaller via scale — does NOT affect surrounding layout.
+      // Store the value so the button inside can be inverse-scaled to its true CSS size.
+      let frameScale = 1;
+      if (Math.random() < 0.25) {
+        frameScale = parseFloat((0.91 + Math.random() * 0.06).toFixed(3));
+        frame.style.transform = 'scale(' + frameScale + ')';
+      }
 
-      // Random rounded corners on frame only — 2–5px at 1920px (0.104–0.260vw)
+      const dL = Math.round((Math.random() - 0.5) * 4);
+      frame.style.backgroundColor =
+        `rgb(${Math.min(255,242+dL)},${Math.min(255,241+dL)},${Math.min(255,236+dL)})`;
+
       frame.style.borderRadius = (0.104 + Math.random() * 0.156).toFixed(3) + 'vw';
 
-      // Paper grain via SVG feTurbulence (unique seed per frame)
+      const outerOp = 0.26 + (Math.random() - 0.5) * 0.08;
+      frame.style.setProperty('--sh-dark',  `rgba(114,114,110,${outerOp.toFixed(3)})`);
+      frame.style.setProperty('--sh-light', `rgba(114,114,110,${(outerOp * 0.5).toFixed(3)})`);
+
       const seed = (Math.random() * 9998 | 0) + 1;
       const bgLayers = [grainLayer(seed)];
 
-      // Light stain on ~40% of frames — warm cream or cool grey smudge
       if (Math.random() < 0.4) {
         const sx  = (20 + Math.random() * 60).toFixed(1);
         const sy  = (20 + Math.random() * 60).toFixed(1);
@@ -209,8 +281,8 @@
         const sh  = (7  + Math.random() * 11).toFixed(1);
         const a   = (0.04 + Math.random() * 0.05).toFixed(3);
         const col = Math.random() < 0.55
-          ? `rgba(195,165,110,${a})`   // warm amber-cream
-          : `rgba(158,153,148,${a})`;  // cool grey-stone
+          ? `rgba(195,165,110,${a})`
+          : `rgba(158,153,148,${a})`;
         bgLayers.push(
           `radial-gradient(ellipse ${sw}% ${sh}% at ${sx}% ${sy}%, ${col} 0%, transparent 100%)`
         );
@@ -235,16 +307,129 @@
       const overlay = document.createElement('div');
       overlay.className = 'masonry-item-overlay';
       overlay.innerHTML = '<button class="masonry-open-btn">OPEN IN GENERATOR</button>';
+      // If the parent frame is scaled down, inverse-scale the button so it renders at
+      // its true CSS size (27px) rather than being visually shrunk by the parent transform.
+      if (frameScale !== 1) {
+        overlay.querySelector('.masonry-open-btn').style.transform =
+          'scale(' + (1 / frameScale).toFixed(4) + ')';
+      }
 
       photo.appendChild(img);
       photo.appendChild(overlay);
       frame.appendChild(photo);
       item.appendChild(frame);
 
-      document.getElementById(`masCol${colIdx}`).appendChild(item);
-      colH[colIdx] += 1.25; // fixed estimate for shortest-column balancing
+      // ── Decorative tape (frames where previous item had extra gap below)
+      // Tape sits above the frame/photo (z-index:2 within masonry-item's stacking context)
+      // and automatically below #starLayer (z-index:50) which lives outside masonry.
+      if (_prevHadExtraGap[colIdx]) {
+        const tape   = document.createElement('img');
+        tape.src     = TAPE_IMGS[Math.floor(Math.random() * TAPE_IMGS.length)];
+        tape.alt     = '';
+        tape.loading = 'lazy';
+        tape.className = 'frame-tape';
 
-      requestAnimationFrame(() => fadeObs.observe(item));
+        const variant = Math.floor(Math.random() * 3);
+        let rot, anchorX;
+        if (variant === 0) {
+          // Centered on top border, slight tilt
+          rot     = (-5  + Math.random() * 10).toFixed(2);
+          anchorX = '50%';
+        } else if (variant === 1) {
+          // Top-left corner, diagonal
+          rot     = (-35 + Math.random() * 10).toFixed(2);
+          anchorX = '0%';
+        } else {
+          // Top-right corner, diagonal
+          rot     = (25  + Math.random() * 10).toFixed(2);
+          anchorX = '100%';
+        }
+
+        tape.style.left      = anchorX;
+        tape.style.top       = '0';
+        tape.style.transform = `translate(-50%, -20%) rotate(${rot}deg)`;
+        item.appendChild(tape);
+      }
+
+      // Update tracking for the next item in this column.
+      _prevHadExtraGap[colIdx] = !!item.style.marginBottom;
+
+      // Insert item into DOM first so getBoundingClientRect() works in rAF below
+      document.getElementById(`masCol${colIdx}`).appendChild(item);
+      colH[colIdx] += 1.25;
+
+      // ── Decorative star (zone-based: ~1 per 3–4 items, never adjacent columns back-to-back)
+      // Star goes into #starLayer (z-index:50 sibling of masonry grid) so it always
+      // paints above ALL frames, regardless of their individual stacking contexts.
+      _starCount++;
+      let _pendingStar = null;
+      if (_starCount - _starLastAt  >= 7 &&
+          _starCount - _starColAt[colIdx] >= 12 &&
+          Math.random() < 0.35) {
+        _starLastAt        = _starCount;
+        _starColAt[colIdx] = _starCount;
+
+        const si     = document.createElement('img');
+        si.src       = STAR_IMGS[Math.floor(Math.random() * STAR_IMGS.length)];
+        si.alt       = '';
+        si.loading   = 'lazy';
+        si.className = 'browse-star';
+        si.style.transitionDelay = item.style.transitionDelay;
+
+        const sz      = (5.5 + Math.random() * 3.615).toFixed(2) + 'vw'; // 5.5–9.1vw (≤175px at 1920px)
+        const rot     = Math.floor(Math.random() * 360);
+        const useLeft = Math.random() < 0.5;
+
+        si.style.width     = sz;
+        si.style.height    = sz;
+        // translate(-50%,-50%) centers the star on the target corner point
+        si.style.transform = `translate(-50%, -50%) rotate(${rot}deg)`;
+
+        _pendingStar = { si, useLeft };
+      }
+
+      // Observe item immediately (IO callbacks are async so this is safe)
+      fadeObs.observe(item);
+
+      // Position star after browser has laid out the new item.
+      // setTimeout(0) is used instead of rAF so it fires even in background/throttled iframes.
+      if (_pendingStar) {
+        const _ps = _pendingStar; // local const so the closure captures the right value
+        setTimeout(function () {
+          const { si, useLeft } = _ps;
+          const section = document.getElementById('browseSection');
+          const sr      = section.getBoundingClientRect();
+          const ir      = item.getBoundingClientRect();
+
+          // Star size in px: si.style.width is a vw string e.g. "7.42vw"
+          const vpW    = window.innerWidth || document.documentElement.clientWidth || 1920;
+          const starPx  = Math.min(parseFloat(si.style.width) * vpW / 100, 175);
+          const half    = starPx / 2;
+          // Horizontal margin is half the radius so large stars can reach the section edges
+          // (overflow:hidden clips any tiny protruding bits from rotation).
+          const hMargin = half * 0.5;
+
+          // Raw corner: item top-left or top-right in section coords.
+          // Subtract 14 to offset the translateY(14px) initial state that resolves to 0.
+          const rawX = useLeft ? ir.left - sr.left : ir.right - sr.left;
+          const rawY = ir.top - sr.top - 14;
+
+          // Section dimensions for clamping (scrollHeight = full content height).
+          const secW = sr.width;
+          const secH = section.scrollHeight;
+
+          const cx = Math.max(hMargin, Math.min(rawX, secW - hMargin));
+          const cy = Math.max(half,    Math.min(rawY, secH - half));
+
+          // Reject if any existing star already touches the same frame.
+          if (_wouldShareFrame(cx, cy, half)) return;
+
+          si.style.left = cx + 'px';
+          si.style.top  = cy + 'px';
+          document.getElementById('starLayer').appendChild(si);
+          starFadeObs.observe(si);
+        }, 0);
+      }
     }
 
     function renderBatch() {
@@ -314,6 +499,22 @@
       const product   = productId && pool.find(p => p.id === productId);
       if (product) openInGenerator(product);
     });
+  </script>
+
+  <script>
+    (function () {
+      var btn = document.getElementById('avatarBtn');
+      var dd  = document.getElementById('avatarDropdown');
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var open = dd.classList.toggle('is-open');
+        btn.setAttribute('aria-expanded', String(open));
+      });
+      document.addEventListener('click', function () {
+        dd.classList.remove('is-open');
+        btn.setAttribute('aria-expanded', 'false');
+      });
+    })();
   </script>
 
 </body>
