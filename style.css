@@ -50,7 +50,6 @@
   --roll-bg: #31220c;
   --overlay-bg: rgba(38, 26, 18, 0.84);
   --card-radius: 14px;
-  --star-gold: #faf0eb;
 }
 
 /* scrollbar-gutter must be on html, not body — the document scrollbar is
@@ -131,7 +130,7 @@ body {
 /* ── Browse / masonry section ─────────────────────── */
 .browse-section {
   position: relative;
-  overflow: hidden; /* prevents stars from causing horizontal scroll or overflowing edges */
+  overflow: hidden;
   min-height: 100vh;
   padding: 2.5vw 2.35vw 4.17vw; /* 48px top, 45.1px sides, 80px bottom at 1920px */
   background-color: #EFEEED;
@@ -292,47 +291,6 @@ body {
 }
 
 .masonry-open-btn:hover { background: rgba(255, 250, 245, 0.12); }
-
-/* ── Decorative tape strips ─────────────────────────── */
-/* Positioned on frames that have extra vertical space above (prev item had extra gap).
-   z-index:2 keeps tape above the frame and its shadow (::after at z-index:1)
-   but below #starLayer (z-index:50) which lives outside the masonry stacking context. */
-.frame-tape {
-  position: absolute;
-  display: block;
-  pointer-events: none;
-  height: 4.688vw; /* 90px at 1920px */
-  width: auto;
-  z-index: 2;
-}
-
-/* ── Decorative star overlay layer ─────────────────── */
-/* Sits above all masonry stacking contexts; z-index:50 paints over every frame */
-#starLayer {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  min-height: 100%;
-  pointer-events: none;
-  z-index: 50;
-  overflow: hidden;
-}
-
-/* ── Individual stars ──────────────────────────────── */
-.browse-star {
-  position: absolute;
-  pointer-events: none;
-  display: block;
-  opacity: 0;
-  transition: opacity 1.4s ease;
-  max-width: 175px;
-  max-height: 175px;
-}
-
-.browse-star.star-visible {
-  opacity: 1;
-}
 
 #masonrySentinel {
   height: 1px;
