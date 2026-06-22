@@ -264,7 +264,8 @@
     // ═══════════════════════════════════════════════════════════════════
     //  BACKEND CONFIG
     // ═══════════════════════════════════════════════════════════════════
-    const API_BASE = 'https://choice-architect-server-production.up.railway.app';
+    const API_BASE     = 'https://choice-architect-server-production.up.railway.app';
+    const SIMILARITY_K = 200; // nearest neighbours to fetch per locked product for visual similarity
     const FETCH_K  = 500;
 
     // ═══════════════════════════════════════════════════════════════════
@@ -567,19 +568,16 @@
 
     // ── Advance unlocked slots to next products in filteredResults ─────
     async function doRoll() {
-      if (filteredResults.length === 0 || isFading) return;
+      if (isFading) return;
 
       const constraints    = getTagConstraints();
       const hasConstraints = Object.keys(constraints).length > 0;
+      const lockedSlotProds = slotProducts.filter((p, i) => slotLocked[i] && p);
+      const hasLockedSlots  = lockedSlotProds.length > 0;
 
-      // Slots to replace: unlocked AND (no constraints OR doesn't satisfy constraints)
+      // Replace every slot that does NOT have the top-right slot lock engaged
       const slotsToReplace = new Set(
-        slotProducts.reduce((acc, p, i) => {
-          if (!p || slotLocked[i]) return acc;
-          if (hasConstraints && satisfiesTagConstraints(p, constraints)) return acc;
-          acc.push(i);
-          return acc;
-        }, [])
+        slotProducts.reduce((acc, p, i) => { if (!slotLocked[i]) acc.push(i); return acc; }, [])
       );
       if (slotsToReplace.size === 0) return;
       isFading = true;
@@ -593,37 +591,87 @@
       await new Promise(r => setTimeout(r, 350));
 
       rollHistory.push({
-        slotProducts:  [...slotProducts],
-        slotLocked:    [...slotLocked],
-        slotTagLocks:  slotTagLocks.map(l => ({...l})),
+        slotProducts:   [...slotProducts],
+        slotLocked:     [...slotLocked],
+        slotTagLocks:   slotTagLocks.map(l => ({...l})),
         slotAttrLocked: slotAttrLocked.map(arr => [...(arr || [])]),
         nextIndex,
       });
       if (rollHistory.length > 50) rollHistory.shift();
 
-      const lockedIds = new Set(slotProducts.filter((p, i) => slotLocked[i] && p).map(p => p.id));
-      const shownIds  = new Set(slotProducts.filter((p, i) => !slotsToReplace.has(i) && p).map(p => p.id));
-      slotProducts.forEach((p, i) => { if (slotsToReplace.has(i) && p) shownIds.add(p.id); });
+      const lockedIds  = new Set(lockedSlotProds.map(p => p.id));
+      const currentIds = new Set(slotProducts.filter(Boolean).map(p => p.id));
+      let pool = [];
 
-      const total = filteredResults.length;
-      let fresh = [], stale = [];
-      for (let i = 0; i < total; i++) {
-        const p = filteredResults[(nextIndex + i) % total];
-        if (lockedIds.has(p.id)) continue;
-        if (hasConstraints && !satisfiesTagConstraints(p, constraints)) continue;
-        (shownIds.has(p.id) ? stale : fresh).push(p);
-      }
-      // Fallback: if constraints filter everything out, use full pool
-      if (fresh.length + stale.length === 0) {
+      if (!hasLockedSlots && !hasConstraints) {
+        // ── No locks at all: cycle sequentially through filteredResults ──
+        if (filteredResults.length === 0) { isFading = false; return; }
+        const shownIds = new Set(slotProducts.filter(Boolean).map(p => p.id));
+        const total    = filteredResults.length;
+        const fresh = [], stale = [];
         for (let i = 0; i < total; i++) {
           const p = filteredResults[(nextIndex + i) % total];
-          if (lockedIds.has(p.id)) continue;
           (shownIds.has(p.id) ? stale : fresh).push(p);
         }
-      }
+        pool      = [...fresh, ...stale].slice(0, slotsToReplace.size);
+        nextIndex = (nextIndex + Math.max(slotsToReplace.size, 1)) % total;
 
-      let pool = [...fresh, ...stale].slice(0, slotsToReplace.size);
-      nextIndex = (nextIndex + Math.max(slotsToReplace.size, 1)) % total;
+      } else {
+        // ── Locks present: visual similarity + attribute filtering ──
+        let candidates = [];
+
+        if (hasLockedSlots) {
+          // Fetch visually similar products for each locked slot; union the results
+          const seenIds = new Set();
+          for (const p of lockedSlotProds) {
+            try {
+              const resp = await fetch(
+                `${API_BASE}/search_by_image?url=${encodeURIComponent(p.image_url)}&k=${SIMILARITY_K}`
+              );
+              if (!resp.ok) throw new Error(resp.status);
+              const results = await resp.json();
+              for (const r of results) {
+                if (!seenIds.has(r.id)) { seenIds.add(r.id); candidates.push(r); }
+              }
+            } catch (err) {
+              console.error('Visual similarity search failed for', p.id, err);
+            }
+          }
+        } else {
+          // Attribute locks only, no slot locks → use existing filteredResults
+          candidates = filteredResults;
+        }
+
+        // Apply attribute constraints + exclude already-shown products
+        const applyConstraints = (pool, excludeCurrent) =>
+          pool.filter(p =>
+            !lockedIds.has(p.id) &&
+            (!excludeCurrent || !currentIds.has(p.id)) &&
+            satisfiesTagConstraints(p, constraints)
+          );
+
+        pool = applyConstraints(candidates, true);
+
+        // Fallback 1: allow currently-shown products (widen pool)
+        if (pool.length < slotsToReplace.size) {
+          pool = applyConstraints(candidates, false);
+        }
+
+        // Fallback 2: relax attribute constraints entirely (keep only similarity)
+        if (pool.length < slotsToReplace.size && hasConstraints) {
+          pool = candidates.filter(p => !lockedIds.has(p.id) && !currentIds.has(p.id));
+          if (pool.length < slotsToReplace.size) {
+            pool = candidates.filter(p => !lockedIds.has(p.id));
+          }
+        }
+
+        // Shuffle so each roll feels fresh (similarity order is deterministic)
+        for (let i = pool.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [pool[i], pool[j]] = [pool[j], pool[i]];
+        }
+        pool = pool.slice(0, slotsToReplace.size);
+      }
 
       let poolIdx = 0;
       slotProducts = slotProducts.map((p, i) => {
@@ -733,6 +781,10 @@
         if (!slotProducts[slot]) return;
         if (!slotTagLocks[slot]) slotTagLocks[slot] = {};
         slotTagLocks[slot][field] = !slotTagLocks[slot][field];
+        // Auto-lock the slot-level lock whenever any attribute on it is locked
+        if (slotTagLocks[slot][field]) {
+          slotLocked[slot] = true;
+        }
         renderSlots(false);
         return;
       }
@@ -1070,14 +1122,11 @@
         return matchesCategory(p);
       });
 
-      slotProducts       = Array.from({ length: 5 }, (_, i) => filteredResults[i] || null);
-      slotLocked         = [false, false, false, false, false];
-      slotColorLocked    = [false, false, false, false, false];
-      slotMaterials      = Array.from({ length: 5 }, () => randomMaterial());
-      slotMaterialLocked = [false, false, false, false, false];
-      slotAttrLocked     = Array.from({ length: 5 }, () => activeAttributes.map(() => false));
-      colorFilterColors.clear();
-      nextIndex          = Math.min(5, filteredResults.length);
+      slotProducts    = Array.from({ length: 5 }, (_, i) => filteredResults[i] || null);
+      slotLocked      = [false, false, false, false, false];
+      slotTagLocks    = [{}, {}, {}, {}, {}];
+      slotAttrLocked  = Array.from({ length: 5 }, () => activeAttributes.map(() => false));
+      nextIndex       = Math.min(5, filteredResults.length);
       rollHistory        = [];
       renderSlots();
 
