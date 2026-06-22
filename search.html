@@ -373,6 +373,7 @@
       const imgSrc  = product.image_url;
       const nameEsc = product.name.replace(/&/g, '&amp;').replace(/</g, '&lt;');
 
+      console.log('[DEBUG] product.tags for id=' + product.id, product.tags);
       const rawColor  = product.color;
       console.log(`[color] slot=${slotIndex} id=${product.id} color=${JSON.stringify(rawColor)}`);
       const colorText = (rawColor && rawColor !== 'other')
