@@ -584,6 +584,78 @@ body {
   color: var(--muted);
 }
 
+/* ── Category filter section ────────────────────────── */
+.category-filter-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.category-filter-label {
+  font-family: 'PlantinMTProRg', serif;
+  font-size: 17px;
+  letter-spacing: 0;
+  color: var(--dark);
+}
+
+.category-checkboxes {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 4vh;
+}
+
+.cat-cb-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Hidden native checkbox — keeps semantics/accessibility intact */
+.cat-cb-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.cat-cb-box {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border: 1.3px solid rgba(49, 34, 12, 0.30);
+  border-radius: 3px;
+  background-color: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.cat-cb-box svg {
+  display: none;
+}
+
+/* Checked state driven by JS-toggled class on the label */
+.cat-cb-label.is-checked .cat-cb-box {
+  background-color: #322828;
+  border-color: #322828;
+}
+
+.cat-cb-label.is-checked .cat-cb-box svg {
+  display: block;
+}
+
+.cat-cb-text {
+  font-family: 'Manrope-Regular', sans-serif;
+  font-size: 14px;
+  letter-spacing: 0.06em;
+  color: var(--dark);
+}
+
 /* ══════════════════════════════════════════════════════
    PRODUCT CARDS SCROLL
 ══════════════════════════════════════════════════════ */
@@ -1057,6 +1129,69 @@ body {
   border-radius: 2px;
 }
 
+/* ── Tag chips ─────────────────────────────────────────────────────── */
+.cg-tag-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 4px;
+}
+
+.cg-tag-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 2px 4px 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 250, 245, 0.07);
+  transition: background 0.15s;
+}
+
+.cg-tag-chip.is-tag-locked {
+  background: rgba(255, 250, 245, 0.18);
+}
+
+.cg-tag-label {
+  font-family: 'Manrope-Regular', sans-serif;
+  font-size: 10px;
+  color: rgba(255, 250, 245, 0.75);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+
+.cg-tag-chip.is-tag-locked .cg-tag-label {
+  color: rgba(255, 250, 245, 1);
+}
+
+.cg-tag-lock-btn {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+
+.cg-tag-chip.is-tag-locked .cg-tag-lock-btn {
+  opacity: 1;
+}
+
+/* ── Conflict modal row ─────────────────────────────────────────────── */
+.conflict-type-row {
+  font-family: 'Manrope-Regular', sans-serif;
+  font-size: 13px;
+  color: var(--ink);
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(49, 34, 12, 0.08);
+}
+
 /* ══════════════════════════════════════════════════════
    PRODUCT CARD — COLOR / MATERIAL / ATTR ROWS
 ══════════════════════════════════════════════════════ */
@@ -1229,7 +1364,7 @@ body {
   background: var(--cream);
   border-radius: 18px;
   padding: 25px 25px 25px;
-  width: 340px;
+  width: 360px;
   max-width: 90vw;
   color: var(--dark);
   position: relative;
@@ -1254,12 +1389,13 @@ body {
 
 .save-modal-title {
   font-family: 'PlantinMTProRg', serif;
-  font-size: 25px;
+  font-size: 28px;
   font-weight: normal;
   letter-spacing: 0;
   color: var(--dark);
-  margin-bottom: 24px;
+  margin-bottom: 20px;
   line-height: 1.2;
+  text-align: center;
 }
 
 .save-modal-input-row {
@@ -1370,44 +1506,96 @@ body {
 
 .save-modal-actions {
   display: flex;
-  justify-content: flex-end;
   align-items: center;
-  gap: 8px;
-  margin-top: 18px;
-  padding-top: 16px;
-  border-top: 1px solid rgba(49, 34, 12, 0.1);
+  gap: 10px;
+  margin-top: 20px;
 }
 
 .save-modal-cancel-btn {
-  background: transparent;
+  flex: 1;
+  height: 44px;
+  background: #fffaf5;
   border: none;
+  border-radius: 50px;
   font-family: 'Manrope-Regular', sans-serif;
   font-size: 14px;
-  color: var(--dark-mid);
+  color: var(--dark);
   cursor: pointer;
-  padding: 8px 14px;
-  border-radius: 50px;
-  transition: color 0.15s;
+  transition: opacity 0.15s;
 }
 
 .save-modal-cancel-btn:hover {
-  color: var(--dark);
+  opacity: 0.8;
 }
 
 .save-modal-confirm-btn {
+  flex: 1.4;
+  height: 44px;
   background: var(--dark);
   border: none;
+  border-radius: 50px;
   font-family: 'Manrope-Regular', sans-serif;
   font-size: 14px;
   color: var(--cream);
   cursor: pointer;
-  padding: 8px 16px;
-  border-radius: 50px;
-  transition: background 0.15s;
+  transition: opacity 0.15s;
 }
 
 .save-modal-confirm-btn:hover {
-  background: var(--dark-mid);
+  opacity: 0.85;
+}
+
+/* ── Save modal — tabs ──────────────────────────────── */
+.save-tabs {
+  display: flex;
+  position: relative;
+  border-bottom: 1px solid rgba(49, 34, 12, 0.12);
+  margin-bottom: 18px;
+}
+
+.save-tab {
+  flex: 1;
+  background: none;
+  border: none;
+  padding: 4px 0 11px;
+  font-family: 'Manrope-Regular', sans-serif;
+  font-size: 15px;
+  color: var(--dark);
+  opacity: 0.45;
+  cursor: pointer;
+  text-align: center;
+  transition: opacity 0.18s;
+}
+
+.save-tab.is-active {
+  font-family: 'Manrope-Medium', sans-serif;
+  opacity: 1;
+}
+
+.save-tab-indicator {
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 50%;
+  height: 2px;
+  background: var(--dark);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+.save-tab-panel {
+  display: none;
+}
+
+.save-tab-panel.is-active {
+  display: block;
+}
+
+.save-modal-empty {
+  font-family: 'Manrope-Regular', sans-serif;
+  font-size: 14px;
+  color: var(--muted);
+  padding: 8px 0;
 }
 
 /* ══════════════════════════════════════════════════════
@@ -1459,6 +1647,10 @@ body {
   font-size: 20px;
   color: var(--dark);
   margin-top: 13px;
+}
+
+.outfit-card-name.is-untitled {
+  opacity: 0.3;
 }
 
 .outfits-empty {
@@ -1515,6 +1707,19 @@ body {
 .cg-name-input::placeholder {
   color: var(--dark);
   opacity: 0.35;
+}
+
+/* ── Wishlist detail — wrapping product grid ────────── */
+.wl-products-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(10px, 1.1vw, 24px);
+  padding: 0 clamp(40px, 2.08vw, 60px) 60px;
+}
+
+.wl-products-wrap .product-card {
+  flex: 0 0 clamp(220px, 18vw, 350px);
+  height: clamp(320px, 26vw, 500px);
 }
 
 .open-in-generator-btn {
