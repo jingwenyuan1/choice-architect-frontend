@@ -608,17 +608,19 @@
       });
     }
 
-    // ── Conflict resolution modal ─────────────────────────────────────────
+    // ── GENERATE ─────────────────────────────────────────────────────────
     async function doGenerate() {
-      const styleQuery = document.getElementById('cgStyleInput').value.trim();
-      const toFill = slots.filter(s => s.type === 'picker' && !s.locked);
-      if (toFill.length === 0 || isFading) return;
-      if (slots.some(s => s.type === 'picker' && !s.locked && !s.category)) return;
+      if (isFading) return;
+
+      // Only fill unlocked picker slots that have a category selected
+      const toFill = slots
+        .map((slot, i) => ({ slot, i }))
+        .filter(({ slot }) => slot.type === 'picker' && !slot.locked && slot.category);
+
+      if (toFill.length === 0) return;
 
       isFading = true;
-      const changingIndices = new Set(
-        slots.reduce((acc, s, i) => { if (s.type === 'picker' && !s.locked) acc.push(i); return acc; }, [])
-      );
+      const changingIndices = new Set(toFill.map(({ i }) => i));
       fadeOutChanging(changingIndices);
       hasGenerated = true;
 
@@ -631,50 +633,40 @@
         slots.filter(s => s.locked && s.product).map(s => s.product.id)
       );
 
-      await Promise.all([
-        new Promise(r => setTimeout(r, 350)),
-        (async () => {
-          for (const slot of toFill) {
-            const baseQuery = getSpecificQuery(slot);
-            if (!baseQuery) continue;
-            const q = (styleQuery ? styleQuery + ' ' + baseQuery : baseQuery).toLowerCase();
-            const cacheKey = 'txt:' + q;
+      const styleQuery = document.getElementById('cgStyleInput').value.trim();
 
-            if (!slot.resultsCache || slot.lastQuery !== cacheKey) {
-              try {
-                const resp = await fetch(`${API_BASE}/search?q=${encodeURIComponent(q)}&k=50`);
-                if (!resp.ok) continue;
-                slot.resultsCache = await resp.json();
-                slot.lastQuery    = cacheKey;
-                slot.resultIdx    = 0;
-              } catch { continue; }
-            }
+      // Wait for fade-out to complete before issuing fetches
+      await new Promise(r => setTimeout(r, 350));
 
-            if (!slot.resultsCache || slot.resultsCache.length === 0) continue;
-            let pool = slot.resultsCache.filter(p => !pinnedIds.has(p.id));
-            if (pool.length === 0) continue;
-
-            if (slotColorLocked[slotI] && slot.product && slot.product.color && slot.product.color !== 'other') {
-              const colorPool = pool.filter(p => p.color === slot.product.color);
-              if (colorPool.length > 0) pool = colorPool;
-            }
-
-            const pick = pool[slot.resultIdx % pool.length];
-            slot.resultIdx = (slot.resultIdx + 1) % pool.length;
-            slot.product   = pick;
+      try {
+        // Fetch results for all slots in parallel; each slot gets its own try-catch
+        await Promise.all(toFill.map(async ({ slot }) => {
+          const baseQuery = CATEGORY_QUERY[slot.category];
+          if (!baseQuery) return;
+          const q = (styleQuery ? styleQuery + ' ' + baseQuery : baseQuery).toLowerCase();
+          try {
+            const resp = await fetch(`${API_BASE}/search?q=${encodeURIComponent(q)}&k=200`);
+            if (!resp.ok) return;
+            const results = await resp.json();
+            const pool = results.filter(p => !pinnedIds.has(p.id));
+            if (pool.length === 0) return;
+            const pick = pool[Math.floor(Math.random() * pool.length)];
+            slot.product = pick;
             pinnedIds.add(pick.id);
+          } catch {
+            // Keep existing product if fetch fails; slot stays visible
           }
-        })(),
-      ]);
-
-      slots.forEach((slot, i) => {
-        if (slot.type === 'picker' && !slot.locked && !slotMaterialLocked[i] && slot.product) {
-          slotMaterials[i] = slot.product.tags?.material || randomMaterial();
-        }
-      });
-
-      renderAll(changingIndices);
-      setTimeout(() => { isFading = false; }, 700);
+        }));
+      } finally {
+        // Always re-render and unblock, even if a fetch threw
+        slots.forEach((slot, i) => {
+          if (slot.type === 'picker' && !slot.locked && !slotMaterialLocked[i] && slot.product) {
+            slotMaterials[i] = slot.product.tags?.material || randomMaterial();
+          }
+        });
+        renderAll(changingIndices);
+        setTimeout(() => { isFading = false; }, 700);
+      }
     }
 
     async function doUndo() {

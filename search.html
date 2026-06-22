@@ -637,6 +637,10 @@
               console.error('Visual similarity search failed for', p.id, err);
             }
           }
+          // Restrict to the original search category — filteredResults is the
+          // category-scoped baseline (original text search + price/gender filters).
+          const baseIds = new Set(filteredResults.map(p => p.id));
+          candidates = candidates.filter(p => baseIds.has(p.id));
         } else {
           // Attribute locks only, no slot locks → use existing filteredResults
           candidates = filteredResults;
