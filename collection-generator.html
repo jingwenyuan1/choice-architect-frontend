@@ -221,45 +221,64 @@
     const SAVE_SVG_FILLED = `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>`;
 
     // ── Tag chip helpers ─────────────────────────────────────────────
-    // Flattens product.tags.design (object/array/string) into {key, label, value} entries.
-    function flattenDesign(design) {
-      if (!design) return [];
-      if (typeof design === 'string') return [{ key: 'design', label: 'Cut', value: design }];
-      if (Array.isArray(design)) return [{ key: 'design', label: 'Style', value: design.join(', ') }];
-      // object (Tops, Dresses, Pants/Jeans, Heels)
-      const entries = [];
-      const labelMap = { fit: 'Fit', length: 'Length', sleeve_length: 'Sleeve', neckline: 'Neckline',
-                         rise: 'Rise', heel_height: 'Heel height', heel_type: 'Heel type' };
-      for (const [k, v] of Object.entries(design)) {
-        const val = Array.isArray(v) ? v.join(', ') : v;
-        entries.push({ key: 'design.' + k, label: labelMap[k] || k, value: val });
-      }
-      return entries;
-    }
+    const _TAG_LABEL = {
+      category: 'Category', product_type: 'Type', pattern: 'Pattern',
+      material: 'Material', gender: 'Gender', color: 'Color', occasion: 'Occasion',
+      fit: 'Fit', length: 'Length', sleeve_length: 'Sleeve', neckline: 'Neckline',
+      rise: 'Rise', heel_height: 'Heel height', heel_type: 'Heel type',
+    };
 
-    // Returns array of {key, label, value} for all lockable tags on a product.
+    // Returns array of {key, label, value} for every attribute in product.tags.
+    // Renders all fields present — no hardcoded list of which fields to show.
     function getTagChips(product) {
-      if (!product || !product.tags) return [];
+      if (!product || !product.tags || typeof product.tags !== 'object') return [];
       const t = product.tags;
       const chips = [];
-      // Design sub-fields first (fit, length, sleeve_length, neckline, etc.)
-      chips.push(...flattenDesign(t.design));
-      // Color array from design_tags (e.g. ["Black", "Red"])
-      if (t.color) {
-        const colors = Array.isArray(t.color) ? t.color : [t.color];
-        colors.forEach(c => chips.push({ key: 'color', label: 'Color', value: c }));
+
+      // Order: category, product_type, then design sub-fields, color, pattern, occasion, material, gender
+      const SCALAR_ORDER = ['category', 'product_type'];
+      const ARRAY_ORDER  = ['color', 'occasion'];
+      const SCALAR_TAIL  = ['pattern', 'material', 'gender'];
+
+      for (const key of SCALAR_ORDER) {
+        if (t[key]) chips.push({ key, label: _TAG_LABEL[key] || key, value: t[key] });
       }
-      // Pattern
-      if (t.pattern)  chips.push({ key: 'pattern',  label: 'Pattern',  value: t.pattern });
-      // Occasion — full array
-      if (t.occasion) {
-        const occasions = Array.isArray(t.occasion) ? t.occasion : [t.occasion];
-        occasions.forEach(o => chips.push({ key: 'occasion', label: 'Occasion', value: o }));
+
+      // design: expand nested object, array, or string
+      if (t.design) {
+        const d = t.design;
+        if (typeof d === 'string') {
+          chips.push({ key: 'design', label: 'Style', value: d });
+        } else if (Array.isArray(d)) {
+          d.forEach(v => chips.push({ key: 'design', label: 'Style', value: String(v) }));
+        } else if (typeof d === 'object') {
+          for (const [k, v] of Object.entries(d)) {
+            const vals = Array.isArray(v) ? v : [v];
+            vals.forEach(val =>
+              chips.push({ key: 'design.' + k, label: _TAG_LABEL[k] || k, value: String(val) })
+            );
+          }
+        }
       }
-      // Material
-      if (t.material) chips.push({ key: 'material', label: 'Material', value: t.material });
-      // Gender
-      if (t.gender)   chips.push({ key: 'gender',   label: 'Gender',   value: t.gender });
+
+      for (const key of ARRAY_ORDER) {
+        if (!t[key]) continue;
+        const vals = Array.isArray(t[key]) ? t[key] : [t[key]];
+        vals.forEach(v => chips.push({ key, label: _TAG_LABEL[key] || key, value: String(v) }));
+      }
+
+      for (const key of SCALAR_TAIL) {
+        if (t[key]) chips.push({ key, label: _TAG_LABEL[key] || key, value: t[key] });
+      }
+
+      // Any remaining keys not in the lists above (future-proof)
+      const handled = new Set([...SCALAR_ORDER, 'design', ...ARRAY_ORDER, ...SCALAR_TAIL]);
+      for (const key of Object.keys(t)) {
+        if (handled.has(key) || !t[key]) continue;
+        const vals = Array.isArray(t[key]) ? t[key] : [t[key]];
+        vals.forEach(v => chips.push({ key, label: _TAG_LABEL[key] || key, value: String(v) }));
+      }
+
       return chips;
     }
 
