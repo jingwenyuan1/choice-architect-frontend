@@ -68,6 +68,27 @@
       </div>
     </div>
 
+    <div class="category-filter-section">
+      <span class="category-filter-label">Category</span>
+      <div class="category-checkboxes">
+        <label class="cat-cb-label">
+          <input type="checkbox" class="cat-cb-input" value="women" autocomplete="off">
+          <span class="cat-cb-box"><svg width="12" height="10" viewBox="0 0 12 10" fill="none" aria-hidden="true"><polyline points="1,5.5 4.5,9 11,1" stroke="#fffaf5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <span class="cat-cb-text">Women</span>
+        </label>
+        <label class="cat-cb-label">
+          <input type="checkbox" class="cat-cb-input" value="men" autocomplete="off">
+          <span class="cat-cb-box"><svg width="12" height="10" viewBox="0 0 12 10" fill="none" aria-hidden="true"><polyline points="1,5.5 4.5,9 11,1" stroke="#fffaf5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <span class="cat-cb-text">Men</span>
+        </label>
+        <label class="cat-cb-label">
+          <input type="checkbox" class="cat-cb-input" value="kids" autocomplete="off">
+          <span class="cat-cb-box"><svg width="12" height="10" viewBox="0 0 12 10" fill="none" aria-hidden="true"><polyline points="1,5.5 4.5,9 11,1" stroke="#fffaf5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <span class="cat-cb-text">Kids</span>
+        </label>
+      </div>
+    </div>
+
     <div class="attr-search-section">
       <span class="attr-search-label">Search another attribute</span>
       <div class="attr-search-input-wrapper">
@@ -118,21 +139,47 @@
     <button class="roll-btn" id="rollBtn">ROLL</button>
   </div>
 
-  <!-- ── Save to outfit modal ──────────────────── -->
+  <!-- ── Save modal ────────────────────────────── -->
   <div class="save-modal-overlay" id="saveModal" role="dialog" aria-modal="true">
     <div class="save-modal-box">
-      <button class="save-modal-close" id="saveModalClose">&#x2715;</button>
-      <h2 class="save-modal-title">Save to outfit</h2>
-      <div class="save-modal-input-row">
-        <input type="text" id="saveModalInput" class="save-modal-input" placeholder="New outfit name" autocomplete="off">
-        <button class="save-modal-add-btn" id="saveModalAddBtn">
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-            <line x1="1" y1="6" x2="11" y2="6" stroke="#fffaf5" stroke-width="1.5" stroke-linecap="round"/>
-            <line x1="6" y1="1" x2="6" y2="11" stroke="#fffaf5" stroke-width="1.5" stroke-linecap="round"/>
-          </svg>
-        </button>
+      <h2 class="save-modal-title">Save.</h2>
+
+      <div class="save-tabs" id="saveTabs">
+        <button class="save-tab is-active" data-tab="outfit">Outfit</button>
+        <button class="save-tab" data-tab="wishlist">Wishlist</button>
+        <span class="save-tab-indicator"></span>
       </div>
-      <div class="save-modal-list" id="saveModalList"></div>
+
+      <div class="save-tab-panel is-active" data-panel="outfit">
+        <div class="save-modal-input-row">
+          <input type="text" id="saveOutfitInput" class="save-modal-input" placeholder="New outfit name" autocomplete="off">
+          <button class="save-modal-add-btn" id="saveOutfitAddBtn" aria-label="Focus outfit name field">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+              <line x1="1" y1="6" x2="11" y2="6" stroke="#fffaf5" stroke-width="1.5" stroke-linecap="round"/>
+              <line x1="6" y1="1" x2="6" y2="11" stroke="#fffaf5" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
+        <div class="save-modal-list" id="listOutfit"></div>
+      </div>
+
+      <div class="save-tab-panel" data-panel="wishlist">
+        <div class="save-modal-input-row">
+          <input type="text" id="saveWishlistInput" class="save-modal-input" placeholder="New wishlist name" autocomplete="off">
+          <button class="save-modal-add-btn" id="saveWishlistAddBtn" aria-label="Focus wishlist name field">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+              <line x1="1" y1="6" x2="11" y2="6" stroke="#fffaf5" stroke-width="1.5" stroke-linecap="round"/>
+              <line x1="6" y1="1" x2="6" y2="11" stroke="#fffaf5" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
+        <div class="save-modal-list" id="listWishlist"></div>
+      </div>
+
+      <div class="save-modal-actions">
+        <button class="save-modal-cancel-btn" id="saveModalCancel">Cancel</button>
+        <button class="save-modal-confirm-btn" id="saveModalSave">Save changes</button>
+      </div>
     </div>
   </div>
 
@@ -232,6 +279,7 @@
     let slotMaterials      = [null, null, null, null, null];
     let slotMaterialLocked = [false, false, false, false, false];
     let activeAttributes   = []; // [{attrName, value, display}]
+    let categoryFilters    = new Set(); // 'women' | 'men' | 'kids'
     let slotAttrLocked     = [[], [], [], [], []]; // [slotIdx][attrIdx]
     let colorFilterColors  = new Set();
     let nextIndex          = 0;
@@ -357,6 +405,60 @@
             <button class="icon-btn attr-lock-btn" aria-label="${a.isLocked ? 'Unlock attribute' : 'Lock attribute'}" data-attr-idx="${j}" data-attr-locked="${a.isLocked ? '1' : '0'}">${a.showIcon ? LOCK_CLOSED_SVG : LOCK_OPEN_SVG}</button>
           </div>`).join('');
 
+      // Tag rows from design_tags — order: Color, Material, design fields, Pattern, Occasion
+      const tagRows = (() => {
+        const t = product.tags;
+        if (!t || typeof t !== 'object') return '';
+        const _DESIGN_LABEL = {
+          fit: 'Fit', length: 'Length', sleeve_length: 'Sleeve Length',
+          neckline: 'Neckline', rise: 'Rise',
+          heel_height: 'Heel Height', heel_type: 'Heel Type',
+        };
+        const rows = [];
+
+        // Color — comma-separated array from tags
+        if (t.color) {
+          const vals = Array.isArray(t.color) ? t.color : [t.color];
+          if (vals.length) rows.push(`<div class="product-tag-row"><span class="product-detail">Color: ${vals.join(', ')}</span></div>`);
+        }
+
+        // Material
+        if (t.material) {
+          rows.push(`<div class="product-tag-row"><span class="product-detail">${formatMaterial(t.material)}</span></div>`);
+        }
+
+        // Design fields
+        const d = t.design;
+        if (d) {
+          if (typeof d === 'object' && !Array.isArray(d)) {
+            // Object: one row per key
+            for (const [k, v] of Object.entries(d)) {
+              const label = _DESIGN_LABEL[k] || (k.charAt(0).toUpperCase() + k.slice(1).replace(/_/g, ' '));
+              const vals  = Array.isArray(v) ? v : [v];
+              rows.push(`<div class="product-tag-row"><span class="product-detail">${label}: ${vals.join(', ')}</span></div>`);
+            }
+          } else if (Array.isArray(d)) {
+            // Array: single "Design:" row
+            rows.push(`<div class="product-tag-row"><span class="product-detail">Design: ${d.join(', ')}</span></div>`);
+          } else if (typeof d === 'string') {
+            rows.push(`<div class="product-tag-row"><span class="product-detail">Design: ${d}</span></div>`);
+          }
+        }
+
+        // Pattern
+        if (t.pattern) {
+          rows.push(`<div class="product-tag-row"><span class="product-detail">Pattern: ${t.pattern}</span></div>`);
+        }
+
+        // Occasion — comma-separated array
+        if (t.occasion) {
+          const vals = Array.isArray(t.occasion) ? t.occasion : [t.occasion];
+          if (vals.length) rows.push(`<div class="product-tag-row"><span class="product-detail">Occasion: ${vals.join(', ')}</span></div>`);
+        }
+
+        return rows.join('');
+      })();
+
       return `<div class="product-card${isSlotLocked ? ' is-locked' : ''}" data-id="${product.id}" data-slot="${slotIndex}">
         <img class="product-img" src="${imgSrc}" alt="${nameEsc}" loading="lazy" crossorigin="anonymous">
         ${persistentLock}
@@ -380,8 +482,7 @@
             </div>
             <div class="card-attrs-scroll">
               ${colorRow}
-              ${materialRow}
-              ${attrRows}
+              ${tagRows}
             </div>
           </div>
           <div class="card-footer">
@@ -859,80 +960,149 @@
       localStorage.setItem('tca_outfits', JSON.stringify(cs));
     }
 
-    let currentSaveProduct = null;
+    // ── Save modal ──────────────────────────────────────
+    function getWishlists() {
+      return JSON.parse(localStorage.getItem('tca_wishlists') || '[]');
+    }
+    function saveWishlists(ws) {
+      localStorage.setItem('tca_wishlists', JSON.stringify(ws));
+    }
 
-    function renderModalOutfits() {
-      const list        = document.getElementById('saveModalList');
-      const outfits = getOutfits();
-      if (outfits.length === 0) {
-        list.innerHTML = '<p style="font-family:\'Manrope-Regular\',sans-serif;font-size:14px;color:var(--muted);padding:6px 0;">No outfits yet.</p>';
+    const CHECK_SVG = `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><polyline points="2,7 5,10.5 12,3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    const PLUS_SVG  = `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><line x1="7" y1="2" x2="7" y2="12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="2" y1="7" x2="12" y2="7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
+
+    let currentSaveProduct = null;
+    let pendingOutfitIds   = new Set();
+    let pendingWishlistIds = new Set();
+
+    function renderSaveList(listId, items, pendingIds, typeLabel) {
+      const list = document.getElementById(listId);
+      const fallback = typeLabel === 'outfit' ? 'New Outfit' : 'New Wishlist';
+      if (items.length === 0) {
+        list.innerHTML = '<p class="save-modal-empty">None saved yet.</p>';
         return;
       }
-      list.innerHTML = outfits.map(coll => {
-        const saved   = currentSaveProduct && coll.products.some(p => p.id === currentSaveProduct.id);
-        const nameEsc = coll.name.replace(/&/g, '&amp;').replace(/</g, '&lt;');
-        const thumb   = coll.products[0]
-          ? `<img src="${coll.products[0].image_url}" style="width:52px;height:52px;object-fit:cover;border-radius:6px;flex-shrink:0;" alt="">`
+      list.innerHTML = items.map(item => {
+        const isPending = pendingIds.has(item.id);
+        const nameEsc = (item.name || fallback).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+        const thumb = item.products && item.products[0]
+          ? `<img src="${item.products[0].image_url}" style="width:52px;height:52px;object-fit:cover;border-radius:6px;flex-shrink:0;" alt="">`
           : `<div class="save-outfit-thumb"></div>`;
-        return `<div class="save-outfit-item${saved ? ' is-saved' : ''}" data-coll-id="${coll.id}">
+        return `<div class="save-outfit-item${isPending ? ' is-pending' : ''}" data-item-id="${item.id}" data-item-type="${typeLabel}">
           ${thumb}
           <span class="save-outfit-name">${nameEsc}</span>
-          ${saved
-            ? `<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><polyline points="2,7 5,10.5 12,3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`
-            : `<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><line x1="7" y1="2" x2="7" y2="12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="2" y1="7" x2="12" y2="7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`
-          }        </div>`;
+          ${isPending ? CHECK_SVG : PLUS_SVG}
+        </div>`;
       }).join('');
+    }
+
+    function renderModalOutfits()   { renderSaveList('listOutfit',   getOutfits(),   pendingOutfitIds,   'outfit');   }
+    function renderModalWishlists() { renderSaveList('listWishlist',  getWishlists(), pendingWishlistIds, 'wishlist'); }
+
+    function switchSaveTab(tabName) {
+      document.querySelectorAll('.save-tab').forEach(t =>
+        t.classList.toggle('is-active', t.dataset.tab === tabName));
+      document.querySelectorAll('.save-tab-panel').forEach(p =>
+        p.classList.toggle('is-active', p.dataset.panel === tabName));
+      document.querySelector('.save-tab-indicator').style.transform =
+        tabName === 'wishlist' ? 'translateX(100%)' : 'translateX(0%)';
     }
 
     function openSaveModal(product) {
       currentSaveProduct = product || null;
+      pendingOutfitIds.clear();
+      pendingWishlistIds.clear();
+      if (product) {
+        getOutfits().forEach(o => {
+          if (o.products.some(p => p.id === product.id)) pendingOutfitIds.add(o.id);
+        });
+        getWishlists().forEach(wl => {
+          if (wl.products.some(p => p.id === product.id)) pendingWishlistIds.add(wl.id);
+        });
+      }
+      document.getElementById('saveOutfitInput').value = '';
+      document.getElementById('saveWishlistInput').value = '';
       renderModalOutfits();
+      renderModalWishlists();
+      switchSaveTab('outfit');
       document.getElementById('saveModal').classList.add('is-open');
-      document.getElementById('saveModalInput').focus();
     }
 
     function closeSaveModal() {
       document.getElementById('saveModal').classList.remove('is-open');
       currentSaveProduct = null;
+      pendingOutfitIds.clear();
+      pendingWishlistIds.clear();
     }
 
-    document.getElementById('saveModalClose').addEventListener('click', closeSaveModal);
+    document.querySelectorAll('.save-tab').forEach(tab => {
+      tab.addEventListener('click', () => switchSaveTab(tab.dataset.tab));
+    });
+
+    document.getElementById('saveOutfitAddBtn').addEventListener('click', function () {
+      document.getElementById('saveOutfitInput').focus();
+    });
+    document.getElementById('saveWishlistAddBtn').addEventListener('click', function () {
+      document.getElementById('saveWishlistInput').focus();
+    });
 
     document.getElementById('saveModal').addEventListener('click', function (e) {
-      if (e.target === this) closeSaveModal();
-    });
-
-    document.getElementById('saveModalList').addEventListener('click', function (e) {
+      if (e.target === this) { closeSaveModal(); return; }
       const item = e.target.closest('.save-outfit-item');
-      if (!item || !currentSaveProduct) return;
+      if (!item) return;
+      e.stopPropagation();
+      const type = item.dataset.itemType;
+      const id   = item.dataset.itemId;
+      if (type === 'outfit') {
+        if (pendingOutfitIds.has(id)) pendingOutfitIds.delete(id);
+        else pendingOutfitIds.add(id);
+        renderModalOutfits();
+      } else if (type === 'wishlist') {
+        if (pendingWishlistIds.has(id)) pendingWishlistIds.delete(id);
+        else pendingWishlistIds.add(id);
+        renderModalWishlists();
+      }
+    });
+
+    document.getElementById('saveModalCancel').addEventListener('click', closeSaveModal);
+
+    document.getElementById('saveModalSave').addEventListener('click', function () {
+      const product = currentSaveProduct;
+      if (!product) { closeSaveModal(); return; }
+
+      const outfitName = document.getElementById('saveOutfitInput').value.trim();
+      if (outfitName) {
+        const outfits = getOutfits();
+        outfits.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2), name: outfitName, products: [product] });
+        saveOutfits(outfits);
+      }
       const outfits = getOutfits();
-      const coll        = outfits.find(c => c.id === item.dataset.collId);
-      if (!coll) return;
-      const idx = coll.products.findIndex(p => p.id === currentSaveProduct.id);
-      if (idx >= 0) coll.products.splice(idx, 1);
-      else           coll.products.push(currentSaveProduct);
-      saveOutfits(outfits);
+      let outfitDirty = false;
+      for (const o of outfits) {
+        const has  = o.products.some(p => p.id === product.id);
+        const want = pendingOutfitIds.has(o.id);
+        if (want && !has)  { o.products.push(product); outfitDirty = true; }
+        if (!want && has)  { o.products = o.products.filter(p => p.id !== product.id); outfitDirty = true; }
+      }
+      if (outfitDirty) saveOutfits(outfits);
+
+      const wishlistName = document.getElementById('saveWishlistInput').value.trim();
+      if (wishlistName) {
+        const wishlists = getWishlists();
+        wishlists.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2), name: wishlistName, products: [product] });
+        saveWishlists(wishlists);
+      }
+      const wishlists = getWishlists();
+      let wlDirty = false;
+      for (const wl of wishlists) {
+        const has  = wl.products.some(p => p.id === product.id);
+        const want = pendingWishlistIds.has(wl.id);
+        if (want && !has)  { wl.products.push(product); wlDirty = true; }
+        if (!want && has)  { wl.products = wl.products.filter(p => p.id !== product.id); wlDirty = true; }
+      }
+      if (wlDirty) saveWishlists(wishlists);
+
       closeSaveModal();
-    });
-
-    document.getElementById('saveModalAddBtn').addEventListener('click', function () {
-      const input = document.getElementById('saveModalInput');
-      const name  = input.value.trim();
-      if (!name) return;
-      const outfits = getOutfits();
-      const newColl = {
-        id:       Date.now().toString(36) + Math.random().toString(36).slice(2),
-        name,
-        products: currentSaveProduct ? [currentSaveProduct] : [],
-      };
-      outfits.push(newColl);
-      saveOutfits(outfits);
-      input.value = '';
-      renderModalOutfits();
-    });
-
-    document.getElementById('saveModalInput').addEventListener('keydown', function (e) {
-      if (e.key === 'Enter') document.getElementById('saveModalAddBtn').click();
     });
 
     // Save button clicks — delegate from productsGrid
@@ -946,13 +1116,26 @@
       }
     });
 
-    // ── Price filter ──────────────────────────────────────────────────
-    document.getElementById('priceSearchBtn').addEventListener('click', async function () {
+    // ── Shared filter application (price + category) ─────────────────
+    function matchesCategory(product) {
+      if (categoryFilters.size === 0) return true;
+      const text = (product.name || '').toLowerCase();
+      // Check women first so "womens" doesn't accidentally match the men filter
+      const isWomen = /women|woman|womens|ladies|feminine/.test(text);
+      const isKids  = /\bkids?\b|children|\bchild\b|\bboys?\b|\bgirls?\b|toddler|junior|youth/.test(text);
+      const isMen   = /\bmen\b|\bmens\b|\bman\b|\bmale\b/.test(text) && !isWomen && !isKids;
+      if (categoryFilters.has('women') && isWomen) return true;
+      if (categoryFilters.has('men')   && isMen)   return true;
+      if (categoryFilters.has('kids')  && isKids)  return true;
+      return false;
+    }
+
+    async function applyFilters() {
       if (isFading) return;
       isFading = true;
 
       const track = document.getElementById('productsGrid');
-      track.style.transition = 'opacity 700ms linear';
+      track.style.transition = 'opacity 350ms linear';
       track.style.opacity = '0';
       await new Promise(r => setTimeout(r, 350));
 
@@ -960,11 +1143,13 @@
       const max = parseFloat(document.getElementById('priceMax').value);
       filteredResults = rankedResults.filter(p => {
         const price = p.price != null ? Number(p.price) : null;
-        if (price === null) return true;
-        if (!isNaN(min) && price < min) return false;
-        if (!isNaN(max) && price > max) return false;
-        return true;
+        if (price !== null) {
+          if (!isNaN(min) && price < min) return false;
+          if (!isNaN(max) && price > max) return false;
+        }
+        return matchesCategory(p);
       });
+
       slotProducts       = Array.from({ length: 5 }, (_, i) => filteredResults[i] || null);
       slotLocked         = [false, false, false, false, false];
       slotColorLocked    = [false, false, false, false, false];
@@ -979,6 +1164,20 @@
       track.style.transition = 'opacity 350ms linear';
       track.style.opacity = '1';
       setTimeout(() => { isFading = false; }, 350);
+    }
+
+    // ── Price filter ──────────────────────────────────────────────────
+    document.getElementById('priceSearchBtn').addEventListener('click', applyFilters);
+
+    // ── Category filter ───────────────────────────────────────────────
+    document.querySelectorAll('.cat-cb-input').forEach(function (cb) {
+      cb.addEventListener('change', function () {
+        const label = this.closest('.cat-cb-label');
+        label.classList.toggle('is-checked', this.checked);
+        if (this.checked) categoryFilters.add(this.value);
+        else              categoryFilters.delete(this.value);
+        applyFilters();
+      });
     });
 
     // ── Drag-to-reorder ────────────────────────────────────────────────

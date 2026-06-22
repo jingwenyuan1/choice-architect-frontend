@@ -1202,6 +1202,11 @@ body {
   justify-content: space-between;
 }
 
+.product-tag-row {
+  display: flex;
+  align-items: center;
+}
+
 .product-attr-row {
   display: flex;
   align-items: center;

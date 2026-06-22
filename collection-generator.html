@@ -220,97 +220,6 @@
     // Filled save icon — used for the persistent badge when slot is saved
     const SAVE_SVG_FILLED = `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>`;
 
-    // ── Tag chip helpers ─────────────────────────────────────────────
-    const _TAG_LABEL = {
-      category: 'Category', product_type: 'Type', pattern: 'Pattern',
-      material: 'Material', gender: 'Gender', color: 'Color', occasion: 'Occasion',
-      fit: 'Fit', length: 'Length', sleeve_length: 'Sleeve', neckline: 'Neckline',
-      rise: 'Rise', heel_height: 'Heel height', heel_type: 'Heel type',
-    };
-
-    // Returns array of {key, label, value} for every attribute in product.tags.
-    // Renders all fields present — no hardcoded list of which fields to show.
-    function getTagChips(product) {
-      if (!product || !product.tags || typeof product.tags !== 'object') return [];
-      const t = product.tags;
-      const chips = [];
-
-      // Order: category, product_type, then design sub-fields, color, pattern, occasion, material, gender
-      const SCALAR_ORDER = ['category', 'product_type'];
-      const ARRAY_ORDER  = ['color', 'occasion'];
-      const SCALAR_TAIL  = ['pattern', 'material', 'gender'];
-
-      for (const key of SCALAR_ORDER) {
-        if (t[key]) chips.push({ key, label: _TAG_LABEL[key] || key, value: t[key] });
-      }
-
-      // design: expand nested object, array, or string
-      if (t.design) {
-        const d = t.design;
-        if (typeof d === 'string') {
-          chips.push({ key: 'design', label: 'Style', value: d });
-        } else if (Array.isArray(d)) {
-          d.forEach(v => chips.push({ key: 'design', label: 'Style', value: String(v) }));
-        } else if (typeof d === 'object') {
-          for (const [k, v] of Object.entries(d)) {
-            const vals = Array.isArray(v) ? v : [v];
-            vals.forEach(val =>
-              chips.push({ key: 'design.' + k, label: _TAG_LABEL[k] || k, value: String(val) })
-            );
-          }
-        }
-      }
-
-      for (const key of ARRAY_ORDER) {
-        if (!t[key]) continue;
-        const vals = Array.isArray(t[key]) ? t[key] : [t[key]];
-        vals.forEach(v => chips.push({ key, label: _TAG_LABEL[key] || key, value: String(v) }));
-      }
-
-      for (const key of SCALAR_TAIL) {
-        if (t[key]) chips.push({ key, label: _TAG_LABEL[key] || key, value: t[key] });
-      }
-
-      // Any remaining keys not in the lists above (future-proof)
-      const handled = new Set([...SCALAR_ORDER, 'design', ...ARRAY_ORDER, ...SCALAR_TAIL]);
-      for (const key of Object.keys(t)) {
-        if (handled.has(key) || !t[key]) continue;
-        const vals = Array.isArray(t[key]) ? t[key] : [t[key]];
-        vals.forEach(v => chips.push({ key, label: _TAG_LABEL[key] || key, value: String(v) }));
-      }
-
-      return chips;
-    }
-
-    // Builds the tag chips HTML for a card.
-    function buildTagChipsHTML(product, slotIdx) {
-      const chips = getTagChips(product);
-      if (chips.length === 0) return '';
-      const locked = slotTagLocks[slotIdx] || {};
-      const items = chips.map(({ key, label, value }) => {
-        const isLocked = !!locked[key];
-        return `<div class="cg-tag-chip${isLocked ? ' is-tag-locked' : ''}" data-slot-idx="${slotIdx}" data-tag-key="${key}" data-tag-value="${value}">
-          <span class="cg-tag-label">${label}: ${value}</span>
-          <button class="icon-btn cg-tag-lock-btn" aria-label="${isLocked ? 'Unlock ' + label : 'Lock ' + label}">${isLocked ? LOCK_CLOSED_SVG : LOCK_OPEN_SVG}</button>
-        </div>`;
-      }).join('');
-      return `<div class="cg-tag-chips">${items}</div>`;
-    }
-
-    // Builds &key=value query param string from a slot's locked tags.
-    function buildTagParams(slotIdx, lockedImageSlotIdx) {
-      const merged = {};
-      // Locked image slot's tag locks apply as defaults
-      if (lockedImageSlotIdx !== null && lockedImageSlotIdx !== undefined) {
-        Object.assign(merged, slotTagLocks[lockedImageSlotIdx] || {});
-      }
-      // This slot's own tag locks override
-      Object.assign(merged, slotTagLocks[slotIdx] || {});
-      return Object.entries(merged)
-        .filter(([k]) => !k.startsWith('design'))  // design sub-fields not yet a backend param
-        .map(([k, v]) => '&' + encodeURIComponent(k) + '=' + encodeURIComponent(v))
-        .join('');
-    }
 
     // ── Outfits helpers ──────────────────────────────────────────────
     function getOutfits() {
@@ -327,7 +236,6 @@
     let slotMaterials      = [];
     let slotMaterialLocked = [];
     let slotColorLocked    = [];
-    let slotTagLocks       = [];   // slotTagLocks[i] = { "material": "denim", "design.neckline": "Halter", ... }
     let genHistory    = [];
     const FADE_MS     = 700;
     let isFading      = false;
@@ -364,7 +272,6 @@
       slotMaterials      = slots.map(s => s.product?.tags?.material || randomMaterial());
       slotMaterialLocked = slots.map(() => false);
       slotColorLocked    = slots.map(() => false);
-      slotTagLocks       = slots.map(() => ({}));
       genHistory  = [];
       hasGenerated = false;
     }
@@ -499,7 +406,6 @@
                 <span class="product-detail material-label">Material: ${formatMaterial(material)}</span>
                 <button class="icon-btn cg-material-lock-btn" data-slot-idx="${slotIdx}" aria-label="${isMaterialLocked ? 'Unlock material' : 'Lock material'}">${isMaterialLocked ? LOCK_CLOSED_SVG : LOCK_OPEN_SVG}</button>
               </div>
-              ${buildTagChipsHTML(product, slotIdx)}
             </div>
           </div>
           <div class="card-footer-stack">
@@ -591,7 +497,6 @@
                 <span class="product-detail material-label">Material: ${formatMaterial(material)}</span>
                 <button class="icon-btn cg-material-lock-btn" data-slot-idx="${slotIdx}" aria-label="${isMaterialLocked ? 'Unlock material' : 'Lock material'}">${isMaterialLocked ? LOCK_CLOSED_SVG : LOCK_OPEN_SVG}</button>
               </div>
-              ${buildTagChipsHTML(product, slotIdx)}
             </div>
           </div>
           <div class="card-footer-stack">
@@ -704,103 +609,11 @@
     }
 
     // ── Conflict resolution modal ─────────────────────────────────────────
-    function showConflictModal(lockedSlots, productTypes) {
-      const modal = document.getElementById('conflictModal');
-      const box   = document.getElementById('conflictModalBox');
-
-      function renderStep1() {
-        const mostRecent = lockedSlots[lockedSlots.length - 1];
-        const primaryType = mostRecent?.product?.tags?.product_type || mostRecent?.product?.tags?.category || mostRecent?.product?.category || 'Item';
-        const otherSlots  = lockedSlots.slice(0, -1);
-
-        const tabRows = [
-          `<div class="conflict-type-row"><strong>${primaryType}</strong> generator <span style="opacity:.5">(this tab)</span></div>`,
-          ...otherSlots.map(s => {
-            const t = s.product?.tags?.product_type || s.product?.tags?.category || s.product?.category || 'Item';
-            return `<div class="conflict-type-row"><strong>${t}</strong> generator <span style="opacity:.5">(new tab)</span></div>`;
-          }),
-        ].join('');
-
-        box.innerHTML = `
-          <h2 class="save-modal-title" style="margin-bottom:12px">You've locked items from different product types. Split into separate generators?</h2>
-          <div style="margin:16px 0">${tabRows}</div>
-          <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px">
-            <button class="save-modal-cancel-btn" id="conflictChooseBtn">Choose instead →</button>
-            <button class="save-modal-confirm-btn" id="conflictSplitBtn">Split</button>
-          </div>`;
-
-        document.getElementById('conflictSplitBtn').onclick = () => {
-          // Open a new tab for each non-primary locked slot
-          otherSlots.forEach(s => {
-            const tmpId   = 'tmp_' + Date.now() + '_' + Math.random().toString(36).slice(2);
-            const outfits = getOutfits();
-            outfits.push({ id: tmpId, name: (s.product?.tags?.product_type || 'Draft'), products: [s.product] });
-            saveOutfits(outfits);
-            window.open('collection-generator.html?collection=' + encodeURIComponent(tmpId), '_blank');
-          });
-          modal.classList.remove('is-open');
-          // Unlock the non-primary slots and roll
-          otherSlots.forEach(s => { if (s.type === 'picker') s.locked = false; });
-          doGenerate();
-        };
-
-        document.getElementById('conflictChooseBtn').onclick = renderStep2;
-      }
-
-      function renderStep2() {
-        const radios = productTypes.map((t, i) =>
-          `<label class="conflict-type-row" style="cursor:pointer;display:flex;align-items:center;gap:10px">
-             <input type="radio" name="conflictType" value="${i}" ${i === productTypes.length - 1 ? 'checked' : ''}>
-             <strong>${t}</strong>
-           </label>`
-        ).join('');
-
-        box.innerHTML = `
-          <h2 class="save-modal-title" style="margin-bottom:12px">Select one product type to continue:</h2>
-          <div style="margin:16px 0">${radios}</div>
-          <div style="display:flex;justify-content:flex-end;margin-top:20px">
-            <button class="save-modal-confirm-btn" id="conflictSelectBtn">Continue</button>
-          </div>`;
-
-        document.getElementById('conflictSelectBtn').onclick = () => {
-          const chosen = parseInt(box.querySelector('input[name="conflictType"]:checked')?.value ?? productTypes.length - 1, 10);
-          const chosenType = productTypes[chosen];
-          // Unlock slots that don't match the chosen type
-          slots.forEach(s => {
-            if (s.type === 'picker' && s.locked && s.product) {
-              const t = s.product?.tags?.product_type || s.product?.tags?.category || s.product?.category || 'Item';
-              if (t !== chosenType) s.locked = false;
-            }
-          });
-          modal.classList.remove('is-open');
-          doGenerate();
-        };
-      }
-
-      renderStep1();
-      modal.classList.add('is-open');
-    }
-
     async function doGenerate() {
       const styleQuery = document.getElementById('cgStyleInput').value.trim();
       const toFill = slots.filter(s => s.type === 'picker' && !s.locked);
       if (toFill.length === 0 || isFading) return;
       if (slots.some(s => s.type === 'picker' && !s.locked && !s.category)) return;
-
-      // ── Image lock detection ──────────────────────────────────────────────
-      const allLocked = slots.filter(s => (s.type === 'picker' && s.locked && s.product) || (s.type === 'locked' && s.product));
-      const imageLockedSlot = allLocked[allLocked.length - 1] || null;  // most recently locked
-
-      // ── Conflict detection ────────────────────────────────────────────────
-      if (allLocked.length > 1) {
-        const types = [...new Set(allLocked.map(s =>
-          s.product?.tags?.product_type || s.product?.tags?.category || s.product?.category || 'Item'
-        ))];
-        if (types.length > 1) {
-          showConflictModal(allLocked, types);
-          return;
-        }
-      }
 
       isFading = true;
       const changingIndices = new Set(
@@ -814,29 +627,22 @@
       )));
       if (genHistory.length > 50) genHistory.shift();
 
-      const pinnedIds = new Set(allLocked.map(s => s.product.id));
-      const imageLockedSlotIdx = imageLockedSlot ? slots.indexOf(imageLockedSlot) : null;
+      const pinnedIds = new Set(
+        slots.filter(s => s.locked && s.product).map(s => s.product.id)
+      );
 
       await Promise.all([
         new Promise(r => setTimeout(r, 350)),
         (async () => {
           for (const slot of toFill) {
-            const slotI = slots.indexOf(slot);
-            const tagParams = buildTagParams(slotI, imageLockedSlotIdx);
-            const cacheKey  = (imageLockedSlot ? 'img:' + imageLockedSlot.product.id : 'txt') + tagParams + ':' + getSpecificQuery(slot);
+            const baseQuery = getSpecificQuery(slot);
+            if (!baseQuery) continue;
+            const q = (styleQuery ? styleQuery + ' ' + baseQuery : baseQuery).toLowerCase();
+            const cacheKey = 'txt:' + q;
 
             if (!slot.resultsCache || slot.lastQuery !== cacheKey) {
               try {
-                let resp;
-                if (imageLockedSlot) {
-                  const url = `${API_BASE}/search_by_image?url=${encodeURIComponent(imageLockedSlot.product.image_url)}&k=100&exclude=${encodeURIComponent(imageLockedSlot.product.id)}${tagParams}`;
-                  resp = await fetch(url);
-                } else {
-                  const baseQuery = getSpecificQuery(slot);
-                  if (!baseQuery) continue;
-                  const q = (styleQuery ? styleQuery + ' ' + baseQuery : baseQuery).toLowerCase();
-                  resp = await fetch(`${API_BASE}/search?q=${encodeURIComponent(q)}&k=50${tagParams}`);
-                }
+                const resp = await fetch(`${API_BASE}/search?q=${encodeURIComponent(q)}&k=50`);
                 if (!resp.ok) continue;
                 slot.resultsCache = await resp.json();
                 slot.lastQuery    = cacheKey;
@@ -1118,7 +924,6 @@
         slotMaterials.splice(idx + 1, 0, randomMaterial());
         slotMaterialLocked.splice(idx + 1, 0, false);
         slotColorLocked.splice(idx + 1, 0, false);
-        slotTagLocks.splice(idx + 1, 0, {});
         renderAll();
         return;
       }
@@ -1133,11 +938,10 @@
         slotMaterials.splice(idx, 1);
         slotMaterialLocked.splice(idx, 1);
         slotColorLocked.splice(idx, 1);
-        slotTagLocks.splice(idx, 1);
         if (slots.length === 0) {
           slots.push(newPickerSlot()); savedSlots.push(false);
           slotMaterials.push(randomMaterial()); slotMaterialLocked.push(false);
-          slotColorLocked.push(false); slotTagLocks.push({});
+          slotColorLocked.push(false);
         }
         // Leftmost slot (new index 0) always stays saved
         if (savedSlots.length > 0) savedSlots[0] = true;
@@ -1155,7 +959,6 @@
         slotMaterials.splice(afterIdx + 1, 0, randomMaterial());
         slotMaterialLocked.splice(afterIdx + 1, 0, false);
         slotColorLocked.splice(afterIdx + 1, 0, false);
-        slotTagLocks.splice(afterIdx + 1, 0, {});
         renderAll();
         return;
       }
@@ -1176,24 +979,6 @@
         e.stopPropagation();
         const idx = parseInt(materialLockBtn.dataset.slotIdx, 10);
         slotMaterialLocked[idx] = !slotMaterialLocked[idx];
-        renderAll();
-        return;
-      }
-
-      // Toggle tag lock
-      const tagLockBtn = e.target.closest('.cg-tag-lock-btn');
-      if (tagLockBtn) {
-        e.stopPropagation();
-        const chip = tagLockBtn.closest('.cg-tag-chip');
-        const idx  = parseInt(chip.dataset.slotIdx, 10);
-        const key  = chip.dataset.tagKey;
-        const val  = chip.dataset.tagValue;
-        if (!slotTagLocks[idx]) slotTagLocks[idx] = {};
-        if (slotTagLocks[idx][key]) {
-          delete slotTagLocks[idx][key];
-        } else {
-          slotTagLocks[idx][key] = val;
-        }
         renderAll();
         return;
       }
