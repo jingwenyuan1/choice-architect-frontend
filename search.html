@@ -461,7 +461,7 @@
       })();
 
       return `<div class="product-card${isSlotLocked ? ' is-locked' : ''}" data-id="${product.id}" data-slot="${slotIndex}">
-        <img class="product-img" src="${imgSrc}" alt="${nameEsc}" loading="lazy" crossorigin="anonymous">
+        <img class="product-img" src="${imgSrc}" alt="${nameEsc}" loading="lazy">
         ${persistentLock}
         <div class="card-overlay">
           <div class="overlay-top">
