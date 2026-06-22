@@ -242,10 +242,24 @@
       if (!product || !product.tags) return [];
       const t = product.tags;
       const chips = [];
-      if (t.pattern)  chips.push({ key: 'pattern',      label: 'Pattern',   value: t.pattern });
-      if (t.occasion) chips.push({ key: 'occasion',     label: 'Occasion',  value: Array.isArray(t.occasion) ? t.occasion[0] : t.occasion });
-      if (t.gender)   chips.push({ key: 'gender',       label: 'Gender',    value: t.gender });
+      // Design sub-fields first (fit, length, sleeve_length, neckline, etc.)
       chips.push(...flattenDesign(t.design));
+      // Color array from design_tags (e.g. ["Black", "Red"])
+      if (t.color) {
+        const colors = Array.isArray(t.color) ? t.color : [t.color];
+        colors.forEach(c => chips.push({ key: 'color', label: 'Color', value: c }));
+      }
+      // Pattern
+      if (t.pattern)  chips.push({ key: 'pattern',  label: 'Pattern',  value: t.pattern });
+      // Occasion — full array
+      if (t.occasion) {
+        const occasions = Array.isArray(t.occasion) ? t.occasion : [t.occasion];
+        occasions.forEach(o => chips.push({ key: 'occasion', label: 'Occasion', value: o }));
+      }
+      // Material
+      if (t.material) chips.push({ key: 'material', label: 'Material', value: t.material });
+      // Gender
+      if (t.gender)   chips.push({ key: 'gender',   label: 'Gender',   value: t.gender });
       return chips;
     }
 
