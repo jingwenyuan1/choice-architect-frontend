@@ -270,20 +270,17 @@
     // ═══════════════════════════════════════════════════════════════════
     //  SLOT STATE
     // ═══════════════════════════════════════════════════════════════════
-    let rankedResults      = [];
-    let filteredResults    = [];
-    let dismissedIds       = new Set();
-    let slotProducts       = [null, null, null, null, null];
-    let slotLocked         = [false, false, false, false, false];
-    let slotColorLocked    = [false, false, false, false, false];
-    let slotMaterials      = [null, null, null, null, null];
-    let slotMaterialLocked = [false, false, false, false, false];
-    let activeAttributes   = []; // [{attrName, value, display}]
-    let categoryFilters    = new Set(); // 'women' | 'men' | 'kids'
-    let slotAttrLocked     = [[], [], [], [], []]; // [slotIdx][attrIdx]
-    let colorFilterColors  = new Set();
-    let nextIndex          = 0;
-    let rollHistory        = [];
+    let rankedResults    = [];
+    let filteredResults  = [];
+    let dismissedIds     = new Set();
+    let slotProducts     = [null, null, null, null, null];
+    let slotLocked       = [false, false, false, false, false];
+    let slotTagLocks     = [{}, {}, {}, {}, {}]; // {field: bool} per slot
+    let activeAttributes = []; // [{attrName, value, display}]
+    let categoryFilters  = new Set();
+    let slotAttrLocked   = [[], [], [], [], []];
+    let nextIndex        = 0;
+    let rollHistory      = [];
     const FADE_MS = 700;
     let   isFading = false;
 
@@ -291,114 +288,89 @@
     function compactSlots() {
       const active = slotProducts
         .map((p, i) => p ? {
-          product:        p,
-          locked:         slotLocked[i],
-          colorLocked:    slotColorLocked[i],
-          material:       slotMaterials[i],
-          materialLocked: slotMaterialLocked[i],
-          attrLocked:     slotAttrLocked[i] ? [...slotAttrLocked[i]] : activeAttributes.map(() => false),
+          product:    p,
+          locked:     slotLocked[i],
+          tagLocks:   {...(slotTagLocks[i] || {})},
+          attrLocked: slotAttrLocked[i] ? [...slotAttrLocked[i]] : activeAttributes.map(() => false),
         } : null)
         .filter(Boolean);
       for (let i = 0; i < 5; i++) {
         if (i < active.length) {
-          slotProducts[i]       = active[i].product;
-          slotLocked[i]         = active[i].locked;
-          slotColorLocked[i]    = active[i].colorLocked;
-          slotMaterials[i]      = active[i].material;
-          slotMaterialLocked[i] = active[i].materialLocked;
-          slotAttrLocked[i]     = active[i].attrLocked;
+          slotProducts[i]   = active[i].product;
+          slotLocked[i]     = active[i].locked;
+          slotTagLocks[i]   = active[i].tagLocks;
+          slotAttrLocked[i] = active[i].attrLocked;
         } else {
-          slotProducts[i]       = null;
-          slotLocked[i]         = false;
-          slotColorLocked[i]    = false;
-          slotMaterials[i]      = null;
-          slotMaterialLocked[i] = false;
-          slotAttrLocked[i]     = activeAttributes.map(() => false);
+          slotProducts[i]   = null;
+          slotLocked[i]     = false;
+          slotTagLocks[i]   = {};
+          slotAttrLocked[i] = activeAttributes.map(() => false);
         }
       }
-      rebuildColorFilterColors();
     }
 
-    // Rebuild colorFilterColors from current slotColorLocked state
-    function rebuildColorFilterColors() {
-      colorFilterColors.clear();
+    // ── Tag field helpers ───────────────────────────────────────────────
+    function getTagFieldValues(tags, field) {
+      if (!tags) return [];
+      if (field === 'color') { const v = tags.color; return Array.isArray(v) ? v : (v ? [v] : []); }
+      if (field === 'material') return tags.material ? [tags.material] : [];
+      if (field === 'pattern')  return tags.pattern  ? [tags.pattern]  : [];
+      if (field === 'occasion') { const v = tags.occasion; return Array.isArray(v) ? v : (v ? [v] : []); }
+      if (field === 'design') { const d = tags.design; return Array.isArray(d) ? d : (typeof d === 'string' ? [d] : []); }
+      if (field.startsWith('design.')) {
+        const sub = field.slice(7), d = tags.design;
+        if (!d || typeof d !== 'object' || Array.isArray(d)) return [];
+        const v = d[sub]; return Array.isArray(v) ? v : (v ? [v] : []);
+      }
+      return [];
+    }
+
+    function getTagConstraints() {
+      const c = {};
       slotProducts.forEach((p, i) => {
-        if (p && slotColorLocked[i] && p.color) colorFilterColors.add(p.color);
+        if (!p || !p.tags || !slotTagLocks[i]) return;
+        Object.entries(slotTagLocks[i]).forEach(([field, locked]) => {
+          if (!locked) return;
+          getTagFieldValues(p.tags, field).forEach(v => {
+            if (!c[field]) c[field] = new Set();
+            c[field].add(v);
+          });
+        });
       });
+      return c;
     }
 
-    // ── Format helpers ──────────────────────────────────────────────────
-    function formatColor(code) {
-      if (!code || code === 'other') return 'Multicolor';
-      return code.charAt(0).toUpperCase() + code.slice(1);
+    function satisfiesTagConstraints(product, constraints) {
+      for (const [field, allowed] of Object.entries(constraints)) {
+        const vals = getTagFieldValues(product.tags || {}, field);
+        if (!vals.some(v => allowed.has(v))) return false;
+      }
+      return true;
     }
 
-    // ── Compute which lock icons should show as closed (includes propagation) ──
+    // ── Compute attr icon states ────────────────────────────────────────
     function computeIconStates() {
-      // Color: show closed if this slot is color-locked OR another slot with same color is locked
-      const colorIcons = slotProducts.map((p, i) => {
-        if (!p) return false;
-        if (slotColorLocked[i]) return true;
-        return slotProducts.some((q, j) => j !== i && q && slotColorLocked[j] && q.color === p.color);
-      });
-
-      // Material: show closed if this slot is material-locked OR another slot with same material is locked
-      const materialIcons = slotProducts.map((p, i) => {
-        if (!p) return false;
-        if (slotMaterialLocked[i]) return true;
-        return slotProducts.some((q, j) =>
-          j !== i && q && slotMaterialLocked[j] && slotMaterials[j] === slotMaterials[i]
-        );
-      });
-
-      // Attrs: since all cards show the same attribute, if ANY slot has attr j locked → show locked on all
       const attrIcons = slotProducts.map((p, i) => {
         if (!p) return activeAttributes.map(() => false);
         return activeAttributes.map((_, j) => {
           if (slotAttrLocked[i] && slotAttrLocked[i][j]) return true;
-          return slotAttrLocked.some((locks, k) =>
-            k !== i && slotProducts[k] && locks && locks[j]
-          );
+          return slotAttrLocked.some((locks, k) => k !== i && slotProducts[k] && locks && locks[j]);
         });
       });
-
-      return { colorIcons, materialIcons, attrIcons };
+      return { attrIcons };
     }
 
     // ── Build the HTML for one product card ────────────────────────────
-    function buildCardHTML(product, slotIndex, isSlotLocked,
-                           isColorLocked, showColorLockedIcon,
-                           material, isMaterialLocked, showMaterialLockedIcon,
-                           attrLockedData) {
+    function buildCardHTML(product, slotIndex, isSlotLocked, tagLockState, attrLockedData) {
       const imgSrc  = product.image_url;
       const nameEsc = product.name.replace(/&/g, '&amp;').replace(/</g, '&lt;');
 
-      console.log('[DEBUG] product.tags for id=' + product.id, product.tags);
-      const rawColor  = product.color;
-      console.log(`[color] slot=${slotIndex} id=${product.id} color=${JSON.stringify(rawColor)}`);
-      const colorText = (rawColor && rawColor !== 'other')
-        ? `Color: ${formatColor(rawColor)}`
-        : 'Color: Multicolor';
-
-      const priceText = product.price != null
-        ? `$${Number(product.price).toFixed(2)}`
-        : '$Price';
-
+      const priceText = product.price != null ? `$${Number(product.price).toFixed(2)}` : '$Price';
       const href      = product.link || '#';
       const linkAttrs = product.link ? ' target="_blank" rel="noopener"' : '';
 
-      const slotLockBtn = `<button class="icon-btn slot-lock-btn" aria-label="${isSlotLocked ? 'Unlock slot' : 'Lock slot'}" data-slot="${slotIndex}">${isSlotLocked ? LOCK_CLOSED_SVG : LOCK_OPEN_SVG}</button>`;
+      const slotLockBtn    = `<button class="icon-btn slot-lock-btn" aria-label="${isSlotLocked ? 'Unlock slot' : 'Lock slot'}" data-slot="${slotIndex}">${isSlotLocked ? LOCK_CLOSED_SVG : LOCK_OPEN_SVG}</button>`;
       const persistentLock = `<button class="slot-lock-btn persistent-lock" aria-label="Unlock slot" data-slot="${slotIndex}">${LOCK_CLOSED_SVG}</button>`;
-
-      const colorRow = `<div class="product-color-row">
-            <span class="product-detail color-label">${colorText}</span>
-            <button class="icon-btn deco-lock-btn" aria-label="${isColorLocked ? 'Unlock colour filter' : 'Lock colour filter'}" data-deco="${isColorLocked ? '1' : '0'}">${showColorLockedIcon ? LOCK_CLOSED_SVG : LOCK_OPEN_SVG}</button>
-          </div>`;
-
-      const materialRow = `<div class="product-material-row">
-            <span class="product-detail material-label">Material: ${formatMaterial(material)}</span>
-            <button class="icon-btn material-lock-btn" aria-label="${isMaterialLocked ? 'Unlock material' : 'Lock material'}" data-material-locked="${isMaterialLocked ? '1' : '0'}">${showMaterialLockedIcon ? LOCK_CLOSED_SVG : LOCK_OPEN_SVG}</button>
-          </div>`;
 
       const attrRows = attrLockedData.map((a, j) => `<div class="product-attr-row">
             <span class="product-detail attr-label">${a.display}</span>
@@ -406,7 +378,7 @@
             <button class="icon-btn attr-lock-btn" aria-label="${a.isLocked ? 'Unlock attribute' : 'Lock attribute'}" data-attr-idx="${j}" data-attr-locked="${a.isLocked ? '1' : '0'}">${a.showIcon ? LOCK_CLOSED_SVG : LOCK_OPEN_SVG}</button>
           </div>`).join('');
 
-      // Tag rows from design_tags — order: Color, Material, design fields, Pattern, Occasion
+      // Tag rows from design_tags — Color, Material, Design fields, Pattern, Occasion
       const tagRows = (() => {
         const t = product.tags;
         if (!t || typeof t !== 'object') return '';
@@ -415,48 +387,42 @@
           neckline: 'Neckline', rise: 'Rise',
           heel_height: 'Heel Height', heel_type: 'Heel Type',
         };
+        const lock = tagLockState || {};
+        const btn = field => {
+          const on = !!lock[field];
+          return `<button class="icon-btn tag-lock-btn" data-tag-field="${field}" aria-label="${on ? 'Unlock' : 'Lock'}">${on ? LOCK_CLOSED_SVG : LOCK_OPEN_SVG}</button>`;
+        };
         const rows = [];
 
-        // Color — comma-separated array from tags
         if (t.color) {
           const vals = Array.isArray(t.color) ? t.color : [t.color];
-          if (vals.length) rows.push(`<div class="product-tag-row"><span class="product-detail">Color: ${vals.join(', ')}</span></div>`);
+          if (vals.length) rows.push(`<div class="product-tag-row"><span class="product-detail">Color: ${vals.join(', ')}</span>${btn('color')}</div>`);
         }
-
-        // Material
         if (t.material) {
-          rows.push(`<div class="product-tag-row"><span class="product-detail">Material: ${formatMaterial(t.material)}</span></div>`);
+          rows.push(`<div class="product-tag-row"><span class="product-detail">Material: ${formatMaterial(t.material)}</span>${btn('material')}</div>`);
         }
-
-        // Design fields
         const d = t.design;
         if (d) {
           if (typeof d === 'object' && !Array.isArray(d)) {
-            // Object: one row per key
             for (const [k, v] of Object.entries(d)) {
+              const field = 'design.' + k;
               const label = _DESIGN_LABEL[k] || (k.charAt(0).toUpperCase() + k.slice(1).replace(/_/g, ' '));
               const vals  = Array.isArray(v) ? v : [v];
-              rows.push(`<div class="product-tag-row"><span class="product-detail">${label}: ${vals.join(', ')}</span></div>`);
+              rows.push(`<div class="product-tag-row"><span class="product-detail">${label}: ${vals.join(', ')}</span>${btn(field)}</div>`);
             }
           } else if (Array.isArray(d)) {
-            // Array: single "Design:" row
-            rows.push(`<div class="product-tag-row"><span class="product-detail">Design: ${d.join(', ')}</span></div>`);
+            rows.push(`<div class="product-tag-row"><span class="product-detail">Design: ${d.join(', ')}</span>${btn('design')}</div>`);
           } else if (typeof d === 'string') {
-            rows.push(`<div class="product-tag-row"><span class="product-detail">Design: ${d}</span></div>`);
+            rows.push(`<div class="product-tag-row"><span class="product-detail">Design: ${d}</span>${btn('design')}</div>`);
           }
         }
-
-        // Pattern
         if (t.pattern) {
-          rows.push(`<div class="product-tag-row"><span class="product-detail">Pattern: ${t.pattern}</span></div>`);
+          rows.push(`<div class="product-tag-row"><span class="product-detail">Pattern: ${t.pattern}</span>${btn('pattern')}</div>`);
         }
-
-        // Occasion — comma-separated array
         if (t.occasion) {
           const vals = Array.isArray(t.occasion) ? t.occasion : [t.occasion];
-          if (vals.length) rows.push(`<div class="product-tag-row"><span class="product-detail">Occasion: ${vals.join(', ')}</span></div>`);
+          if (vals.length) rows.push(`<div class="product-tag-row"><span class="product-detail">Occasion: ${vals.join(', ')}</span>${btn('occasion')}</div>`);
         }
-
         return rows.join('');
       })();
 
@@ -482,8 +448,8 @@
               </div>
             </div>
             <div class="card-attrs-scroll">
-              ${colorRow}
               ${tagRows}
+              ${attrRows}
             </div>
           </div>
           <div class="card-footer">
@@ -509,7 +475,7 @@
       }
 
       noResults.style.display = 'none';
-      const { colorIcons, materialIcons, attrIcons } = computeIconStates();
+      const { attrIcons } = computeIconStates();
 
       slotProducts.forEach((product, i) => {
         if (!product) return;
@@ -525,9 +491,7 @@
         const tmp = document.createElement('div');
         tmp.innerHTML = buildCardHTML(
           product, i, slotLocked[i],
-          slotColorLocked[i], colorIcons[i],
-          slotMaterials[i], slotMaterialLocked[i], materialIcons[i],
-          attrLockedData
+          slotTagLocks[i] || {}, attrLockedData
         ).trim();
         const card = tmp.firstElementChild;
         if (animate && (!(animate instanceof Set) || animate.has(i))) card.classList.add('card-fade-in');
@@ -553,17 +517,14 @@
 
     // ── Reset slots from a fresh results array ─────────────────────────
     function initSlots(results) {
-      dismissedIds       = new Set();
-      filteredResults    = results;
-      slotProducts       = Array.from({ length: 5 }, (_, i) => filteredResults[i] || null);
-      slotLocked         = [false, false, false, false, false];
-      slotColorLocked    = [false, false, false, false, false];
-      slotMaterials      = Array.from({ length: 5 }, () => randomMaterial());
-      slotMaterialLocked = [false, false, false, false, false];
-      slotAttrLocked     = Array.from({ length: 5 }, () => activeAttributes.map(() => false));
-      colorFilterColors.clear();
-      nextIndex          = Math.min(5, filteredResults.length);
-      rollHistory        = [];
+      dismissedIds    = new Set();
+      filteredResults = results;
+      slotProducts    = Array.from({ length: 5 }, (_, i) => filteredResults[i] || null);
+      slotLocked      = [false, false, false, false, false];
+      slotTagLocks    = [{}, {}, {}, {}, {}];
+      slotAttrLocked  = Array.from({ length: 5 }, () => activeAttributes.map(() => false));
+      nextIndex       = Math.min(5, filteredResults.length);
+      rollHistory     = [];
       renderSlots(true);
     }
 
@@ -608,14 +569,23 @@
     async function doRoll() {
       if (filteredResults.length === 0 || isFading) return;
 
-      const unlockedIndices = new Set(
-        slotProducts.reduce((acc, p, i) => { if (p && !slotLocked[i]) acc.push(i); return acc; }, [])
+      const constraints    = getTagConstraints();
+      const hasConstraints = Object.keys(constraints).length > 0;
+
+      // Slots to replace: unlocked AND (no constraints OR doesn't satisfy constraints)
+      const slotsToReplace = new Set(
+        slotProducts.reduce((acc, p, i) => {
+          if (!p || slotLocked[i]) return acc;
+          if (hasConstraints && satisfiesTagConstraints(p, constraints)) return acc;
+          acc.push(i);
+          return acc;
+        }, [])
       );
-      if (unlockedIndices.size === 0) return;
+      if (slotsToReplace.size === 0) return;
       isFading = true;
 
       document.getElementById('productsGrid').querySelectorAll('.product-card').forEach(el => {
-        if (unlockedIndices.has(parseInt(el.dataset.slot, 10))) {
+        if (slotsToReplace.has(parseInt(el.dataset.slot, 10))) {
           el.style.transition = 'opacity 350ms linear';
           el.style.opacity    = '0';
         }
@@ -623,54 +593,45 @@
       await new Promise(r => setTimeout(r, 350));
 
       rollHistory.push({
-        slotProducts:      [...slotProducts],
-        slotLocked:        [...slotLocked],
-        slotColorLocked:   [...slotColorLocked],
-        colorFilterColors: new Set(colorFilterColors),
-        slotMaterials:     [...slotMaterials],
-        slotMaterialLocked:[...slotMaterialLocked],
-        slotAttrLocked:    slotAttrLocked.map(arr => [...(arr || [])]),
+        slotProducts:  [...slotProducts],
+        slotLocked:    [...slotLocked],
+        slotTagLocks:  slotTagLocks.map(l => ({...l})),
+        slotAttrLocked: slotAttrLocked.map(arr => [...(arr || [])]),
         nextIndex,
       });
       if (rollHistory.length > 50) rollHistory.shift();
 
-      const lockedIds = new Set(
-        slotProducts.filter((p, i) => slotLocked[i] && p).map(p => p.id)
-      );
-      const shownIds = new Set(
-        slotProducts.filter((p, i) => !slotLocked[i] && p).map(p => p.id)
-      );
+      const lockedIds = new Set(slotProducts.filter((p, i) => slotLocked[i] && p).map(p => p.id));
+      const shownIds  = new Set(slotProducts.filter((p, i) => !slotsToReplace.has(i) && p).map(p => p.id));
+      slotProducts.forEach((p, i) => { if (slotsToReplace.has(i) && p) shownIds.add(p.id); });
 
       const total = filteredResults.length;
-      const fresh = [], stale = [];
-
+      let fresh = [], stale = [];
       for (let i = 0; i < total; i++) {
         const p = filteredResults[(nextIndex + i) % total];
         if (lockedIds.has(p.id)) continue;
+        if (hasConstraints && !satisfiesTagConstraints(p, constraints)) continue;
         (shownIds.has(p.id) ? stale : fresh).push(p);
       }
-
-      let pool = [...fresh, ...stale];
-
-      if (colorFilterColors.size > 0) {
-        const hits   = pool.filter(p => p.color && colorFilterColors.has(p.color));
-        const misses = pool.filter(p => !p.color || !colorFilterColors.has(p.color));
-        pool = [...hits, ...misses];
+      // Fallback: if constraints filter everything out, use full pool
+      if (fresh.length + stale.length === 0) {
+        for (let i = 0; i < total; i++) {
+          const p = filteredResults[(nextIndex + i) % total];
+          if (lockedIds.has(p.id)) continue;
+          (shownIds.has(p.id) ? stale : fresh).push(p);
+        }
       }
 
-      pool = pool.slice(0, unlockedIndices.size);
-      nextIndex = (nextIndex + Math.max(unlockedIndices.size, 1)) % total;
+      let pool = [...fresh, ...stale].slice(0, slotsToReplace.size);
+      nextIndex = (nextIndex + Math.max(slotsToReplace.size, 1)) % total;
 
       let poolIdx = 0;
       slotProducts = slotProducts.map((p, i) => {
-        if (p && !slotLocked[i] && poolIdx < pool.length) {
-          slotMaterials[i] = randomMaterial();
-          return pool[poolIdx++];
-        }
+        if (slotsToReplace.has(i) && poolIdx < pool.length) return pool[poolIdx++];
         return p;
       });
 
-      renderSlots(unlockedIndices);
+      renderSlots(slotsToReplace);
       setTimeout(() => { isFading = false; }, 700);
     }
 
@@ -690,15 +651,12 @@
       });
       await new Promise(r => setTimeout(r, 350));
 
-      const snap         = rollHistory.pop();
-      slotProducts       = snap.slotProducts;
-      slotLocked         = snap.slotLocked;
-      slotColorLocked    = snap.slotColorLocked;
-      colorFilterColors  = snap.colorFilterColors;
-      slotMaterials      = snap.slotMaterials;
-      slotMaterialLocked = snap.slotMaterialLocked;
-      slotAttrLocked     = snap.slotAttrLocked;
-      nextIndex          = snap.nextIndex;
+      const snap      = rollHistory.pop();
+      slotProducts    = snap.slotProducts;
+      slotLocked      = snap.slotLocked;
+      slotTagLocks    = snap.slotTagLocks;
+      slotAttrLocked  = snap.slotAttrLocked;
+      nextIndex       = snap.nextIndex;
       renderSlots(unlockedIndices);
       setTimeout(() => { isFading = false; }, 700);
     }
@@ -736,13 +694,11 @@
         const product = slotProducts[slot];
         if (!product) return;
         dismissedIds.add(product.id);
-        filteredResults        = filteredResults.filter(p => !dismissedIds.has(p.id));
-        slotProducts[slot]       = null;
-        slotLocked[slot]         = false;
-        slotColorLocked[slot]    = false;
-        slotMaterials[slot]      = null;
-        slotMaterialLocked[slot] = false;
-        slotAttrLocked[slot]     = activeAttributes.map(() => false);
+        filteredResults   = filteredResults.filter(p => !dismissedIds.has(p.id));
+        slotProducts[slot]  = null;
+        slotLocked[slot]    = false;
+        slotTagLocks[slot]  = {};
+        slotAttrLocked[slot] = activeAttributes.map(() => false);
         compactSlots();
         rollHistory = [];
         renderSlots();
@@ -759,61 +715,24 @@
         slotLocked[slot] = !slotLocked[slot];
 
         if (!slotLocked[slot]) {
-          // Unlock cascade: clear all sub-locks
-          slotColorLocked[slot]    = false;
-          slotMaterialLocked[slot] = false;
-          slotAttrLocked[slot]     = activeAttributes.map(() => false);
-          rebuildColorFilterColors();
+          slotTagLocks[slot]  = {};
+          slotAttrLocked[slot] = activeAttributes.map(() => false);
         }
 
         renderSlots(false);
         return;
       }
 
-      // Colour lock
-      const decoBtn = e.target.closest('.deco-lock-btn');
-      if (decoBtn) {
+      // Tag attribute lock
+      const tagLockBtn = e.target.closest('.tag-lock-btn');
+      if (tagLockBtn) {
         e.stopPropagation();
-        const card    = decoBtn.closest('.product-card');
-        const slot    = parseInt(card.dataset.slot, 10);
-        const product = slotProducts[slot];
-        if (!product) return;
-
-        const isLocking = decoBtn.getAttribute('data-deco') !== '1';
-
-        if (isLocking) {
-          slotColorLocked[slot] = true;
-          slotLocked[slot]      = true;
-          if (product.color) colorFilterColors.add(product.color);
-        } else {
-          slotColorLocked[slot] = false;
-          slotLocked[slot]      = false;
-          rebuildColorFilterColors();
-        }
-
-        renderSlots(false);
-        return;
-      }
-
-      // Material lock
-      const materialLockBtn = e.target.closest('.material-lock-btn');
-      if (materialLockBtn) {
-        e.stopPropagation();
-        const card = materialLockBtn.closest('.product-card');
-        const slot = parseInt(card.dataset.slot, 10);
+        const card  = tagLockBtn.closest('.product-card');
+        const slot  = parseInt(card.dataset.slot, 10);
+        const field = tagLockBtn.dataset.tagField;
         if (!slotProducts[slot]) return;
-
-        const isLocking = materialLockBtn.getAttribute('data-material-locked') !== '1';
-
-        if (isLocking) {
-          slotMaterialLocked[slot] = true;
-          slotLocked[slot]         = true;
-        } else {
-          slotMaterialLocked[slot] = false;
-          slotLocked[slot] = slotColorLocked[slot] ||
-            !!(slotAttrLocked[slot] && slotAttrLocked[slot].some(Boolean));
-        }
-
+        if (!slotTagLocks[slot]) slotTagLocks[slot] = {};
+        slotTagLocks[slot][field] = !slotTagLocks[slot][field];
         renderSlots(false);
         return;
       }
@@ -854,8 +773,8 @@
         if (isLocking) {
           slotLocked[slot] = true;
         } else {
-          slotLocked[slot] = slotColorLocked[slot] || slotMaterialLocked[slot] ||
-            slotAttrLocked[slot].some(Boolean);
+          slotLocked[slot] = slotAttrLocked[slot].some(Boolean) ||
+            Object.values(slotTagLocks[slot] || {}).some(Boolean);
         }
 
         renderSlots(false);
