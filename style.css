@@ -487,7 +487,7 @@ body {
 .filters-row {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
+  justify-content: flex-start;
   padding: 12px 40px 35px;
 }
 
@@ -548,47 +548,13 @@ body {
   color: var(--dark);
 }
 
-/* "Search another attribute" section */
-.attr-search-section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  align-items: flex-start;
-  width: 260px;
-}
-
-/* "Search another attribute" label */
-.attr-search-label {
-  font-family: 'PlantinMTProRg', serif;
-  font-size: 17px;
-  letter-spacing: 0;
-  color: var(--dark);
-}
-
-/* "Search" placeholder + typed text */
-.attr-search-input {
-  width: 100%;
-  height: 4vh;
-  padding: 0 14px;
-  border: none;
-  border-radius: 7px;
-  font-family: 'Manrope-Regular', sans-serif;
-  font-size: 12px;
-  letter-spacing: 0.06em; /* 60 tracking units */
-  color: var(--dark);
-  background: #fffaf5;
-  outline: none;
-}
-
-.attr-search-input::placeholder {
-  color: var(--muted);
-}
 
 /* ── Category filter section ────────────────────────── */
 .category-filter-section {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  margin-left: calc(clamp(40px, 2.08vw, 60px) + clamp(220px, 18vw, 350px) + clamp(10px, 1.1vw, 24px) - 40px);
 }
 
 .category-filter-label {
@@ -1224,91 +1190,7 @@ body {
   opacity: 1;
 }
 
-.product-attr-row {
-  display: flex;
-  align-items: center;
-}
 
-/* Label shrinks if needed but never grows — X stays flush after text */
-.product-attr-row .attr-label {
-  flex: 0 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.attr-remove-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: #fffaf5;
-  padding: 0;
-  font-size: 10px;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-  width: 10px;
-  margin-left: 4px;
-  margin-right: auto; /* absorbs remaining space, keeping lock at far right */
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.15s;
-}
-
-.product-attr-row:hover .attr-remove-btn {
-  opacity: 0.7;
-  pointer-events: auto;
-}
-
-.attr-remove-btn:hover {
-  opacity: 1 !important;
-}
-
-/* ══════════════════════════════════════════════════════
-   ATTRIBUTE SEARCH DROPDOWN
-══════════════════════════════════════════════════════ */
-.attr-search-input-wrapper {
-  position: relative;
-  width: 100%;
-}
-
-.attr-dropdown {
-  display: none;
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
-  background: #fffaf5;
-  border-radius: 8px;
-  box-shadow: 0 4px 18px rgba(49, 34, 12, 0.14);
-  z-index: 200;
-  max-height: calc(5 * 34px);
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(49, 34, 12, 0.15) transparent;
-}
-
-.attr-dropdown.is-open {
-  display: block;
-}
-
-.attr-dropdown-option {
-  padding: 8px 14px;
-  font-family: 'Manrope-Regular', sans-serif;
-  font-size: 12px;
-  letter-spacing: 0.04em;
-  color: var(--dark);
-  cursor: pointer;
-  transition: background 0.12s;
-  line-height: 1.4;
-}
-
-.attr-dropdown-option:hover {
-  background: rgba(49, 34, 12, 0.06);
-}
 
 /* ══════════════════════════════════════════════════════
    PERSISTENT LOCK BADGE

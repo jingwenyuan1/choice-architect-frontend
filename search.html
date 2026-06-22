@@ -82,25 +82,13 @@
           <span class="cat-cb-text">Men</span>
         </label>
         <label class="cat-cb-label">
-          <input type="checkbox" class="cat-cb-input" value="kids" autocomplete="off">
+          <input type="checkbox" class="cat-cb-input" value="unisex" autocomplete="off">
           <span class="cat-cb-box"><svg width="12" height="10" viewBox="0 0 12 10" fill="none" aria-hidden="true"><polyline points="1,5.5 4.5,9 11,1" stroke="#fffaf5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-          <span class="cat-cb-text">Kids</span>
+          <span class="cat-cb-text">Unisex</span>
         </label>
       </div>
     </div>
 
-    <div class="attr-search-section">
-      <span class="attr-search-label">Search another attribute</span>
-      <div class="attr-search-input-wrapper">
-        <input
-          type="text"
-          class="attr-search-input"
-          placeholder="Search"
-          autocomplete="off"
-        >
-        <div class="attr-dropdown" id="attrDropdown"></div>
-      </div>
-    </div>
   </div>
 
   <!-- ── Products grid ──────────────────────────────── -->
@@ -203,65 +191,8 @@
       return m ? m.charAt(0).toUpperCase() + m.slice(1) : '';
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    //  ATTRIBUTE OPTIONS PER CATEGORY
-    // ═══════════════════════════════════════════════════════════════════
-    const ATTR_GROUPS_BY_CATEGORY = {
-      jeans: [
-        { cat: 'Fit',  values: ['Bootcut','Straight','Baggy','Skinny','Flare','Curvy'] },
-        { cat: 'Rise', values: ['Low','Mid','High'] },
-      ],
-      tops: [
-        { cat: 'Length',   values: ['Cropped','Normal','Long'] },
-        { cat: 'Neckline', values: ['Scoop','V-Neck','Square','Halter','Boat','Plunge','Off-the-Shoulder','One Shoulder'] },
-        { cat: 'Sleeves',  values: ['Sleeveless','Short','Long','Cap','Elbow-Length','Three-Quarter'] },
-      ],
-      jackets: [
-        { cat: 'Temperature', values: ['Moderate Cold','Severe Cold','Extreme Cold'] },
-      ],
-      necklace: [
-        { cat: 'Plating', values: ['Gold','Rose Gold','Rhodium','Silver'] },
-        { cat: 'Length',  values: ['12-14"','14-16"','17-19"','20-22"','22-24"','24+"'] },
-        { cat: 'Chain',   values: ['Cable','Box','Figaro','Cuban','Rope','Paperclip'] },
-      ],
-      earring: [
-        { cat: 'Plating', values: ['Gold','Rose Gold','Rhodium','Silver'] },
-        { cat: 'Back',    values: ['Butterfly','Screw','Flat','Omega','La Pousette','Lever','Fish Hook','Hinged'] },
-      ],
-      jewelry: [
-        { cat: 'Plating', values: ['Gold','Rose Gold','Rhodium','Silver'] },
-      ],
-    };
-    const PATTERN_ATTR_GROUP = { cat: 'Pattern', values: ['Floral','Polka Dot','Stripes','Animal Print','Plaid','Camo','Gingham'] };
-    const NO_PATTERN_CATEGORIES = new Set(['jewelry', 'necklace', 'earring', 'shoes']);
 
-    function getSearchCategory(q) {
-      const s = (q || '').toLowerCase();
-      if (/necklace/.test(s))                                        return 'necklace';
-      if (/earring/.test(s))                                         return 'earring';
-      if (/jean|pant|trouser|chino|legging/.test(s))                 return 'jeans';
-      if (/\btop\b|shirt|blouse|tee|t-shirt|crop|cami|tank/.test(s)) return 'tops';
-      if (/jacket|coat|blazer|cardigan|hoodie|sweater/.test(s))      return 'jackets';
-      if (/jewelry|jewellery|\bring\b|bracelet|pendant/.test(s))     return 'jewelry';
-      if (/shoe|sneaker|boot|heel|sandal|loafer|mule/.test(s))       return 'shoes';
-      return 'other';
-    }
-
-    function getAllAttrOptions(category) {
-      const specific = ATTR_GROUPS_BY_CATEGORY[category] || [];
-      const groups = NO_PATTERN_CATEGORIES.has(category)
-        ? specific
-        : [...specific, PATTERN_ATTR_GROUP];
-      const options = [];
-      for (const group of groups) {
-        for (const value of group.values) {
-          options.push({ attrName: group.cat, value, display: `${group.cat}: ${value}` });
-        }
-      }
-      return options;
-    }
-
-    // ═══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════
     //  BACKEND CONFIG
     // ═══════════════════════════════════════════════════════════════════
     const API_BASE     = 'https://choice-architect-server-production.up.railway.app';
@@ -277,9 +208,7 @@
     let slotProducts     = [null, null, null, null, null];
     let slotLocked       = [false, false, false, false, false];
     let slotTagLocks     = [{}, {}, {}, {}, {}]; // {field: bool} per slot
-    let activeAttributes = []; // [{attrName, value, display}]
     let categoryFilters  = new Set();
-    let slotAttrLocked   = [[], [], [], [], []];
     let nextIndex        = 0;
     let rollHistory      = [];
     const FADE_MS = 700;
@@ -289,23 +218,20 @@
     function compactSlots() {
       const active = slotProducts
         .map((p, i) => p ? {
-          product:    p,
-          locked:     slotLocked[i],
-          tagLocks:   {...(slotTagLocks[i] || {})},
-          attrLocked: slotAttrLocked[i] ? [...slotAttrLocked[i]] : activeAttributes.map(() => false),
+          product:  p,
+          locked:   slotLocked[i],
+          tagLocks: {...(slotTagLocks[i] || {})},
         } : null)
         .filter(Boolean);
       for (let i = 0; i < 5; i++) {
         if (i < active.length) {
-          slotProducts[i]   = active[i].product;
-          slotLocked[i]     = active[i].locked;
-          slotTagLocks[i]   = active[i].tagLocks;
-          slotAttrLocked[i] = active[i].attrLocked;
+          slotProducts[i] = active[i].product;
+          slotLocked[i]   = active[i].locked;
+          slotTagLocks[i] = active[i].tagLocks;
         } else {
-          slotProducts[i]   = null;
-          slotLocked[i]     = false;
-          slotTagLocks[i]   = {};
-          slotAttrLocked[i] = activeAttributes.map(() => false);
+          slotProducts[i] = null;
+          slotLocked[i]   = false;
+          slotTagLocks[i] = {};
         }
       }
     }
@@ -349,20 +275,8 @@
       return true;
     }
 
-    // ── Compute attr icon states ────────────────────────────────────────
-    function computeIconStates() {
-      const attrIcons = slotProducts.map((p, i) => {
-        if (!p) return activeAttributes.map(() => false);
-        return activeAttributes.map((_, j) => {
-          if (slotAttrLocked[i] && slotAttrLocked[i][j]) return true;
-          return slotAttrLocked.some((locks, k) => k !== i && slotProducts[k] && locks && locks[j]);
-        });
-      });
-      return { attrIcons };
-    }
-
     // ── Build the HTML for one product card ────────────────────────────
-    function buildCardHTML(product, slotIndex, isSlotLocked, tagLockState, attrLockedData) {
+    function buildCardHTML(product, slotIndex, isSlotLocked, tagLockState) {
       const imgSrc  = product.image_url;
       const nameEsc = product.name.replace(/&/g, '&amp;').replace(/</g, '&lt;');
 
@@ -373,11 +287,6 @@
       const slotLockBtn    = `<button class="icon-btn slot-lock-btn" aria-label="${isSlotLocked ? 'Unlock slot' : 'Lock slot'}" data-slot="${slotIndex}">${isSlotLocked ? LOCK_CLOSED_SVG : LOCK_OPEN_SVG}</button>`;
       const persistentLock = `<button class="slot-lock-btn persistent-lock" aria-label="Unlock slot" data-slot="${slotIndex}">${LOCK_CLOSED_SVG}</button>`;
 
-      const attrRows = attrLockedData.map((a, j) => `<div class="product-attr-row">
-            <span class="product-detail attr-label">${a.display}</span>
-            <button class="attr-remove-btn" aria-label="Remove attribute" data-attr-idx="${j}">&#x2715;</button>
-            <button class="icon-btn attr-lock-btn" aria-label="${a.isLocked ? 'Unlock attribute' : 'Lock attribute'}" data-attr-idx="${j}" data-attr-locked="${a.isLocked ? '1' : '0'}">${a.showIcon ? LOCK_CLOSED_SVG : LOCK_OPEN_SVG}</button>
-          </div>`).join('');
 
       // Tag rows from design_tags — Color, Material, Design fields, Pattern, Occasion
       const tagRows = (() => {
@@ -450,7 +359,6 @@
             </div>
             <div class="card-attrs-scroll">
               ${tagRows}
-              ${attrRows}
             </div>
           </div>
           <div class="card-footer">
@@ -476,23 +384,13 @@
       }
 
       noResults.style.display = 'none';
-      const { attrIcons } = computeIconStates();
 
       slotProducts.forEach((product, i) => {
         if (!product) return;
 
-        const attrLockedData = activeAttributes.map((attr, j) => ({
-          attrName: attr.attrName,
-          value:    attr.value,
-          display:  attr.display,
-          isLocked: !!(slotAttrLocked[i] && slotAttrLocked[i][j]),
-          showIcon: !!(attrIcons[i] && attrIcons[i][j]),
-        }));
-
         const tmp = document.createElement('div');
         tmp.innerHTML = buildCardHTML(
-          product, i, slotLocked[i],
-          slotTagLocks[i] || {}, attrLockedData
+          product, i, slotLocked[i], slotTagLocks[i] || {}
         ).trim();
         const card = tmp.firstElementChild;
         if (animate && (!(animate instanceof Set) || animate.has(i))) card.classList.add('card-fade-in');
@@ -521,11 +419,10 @@
       dismissedIds    = new Set();
       filteredResults = results;
       slotProducts    = Array.from({ length: 5 }, (_, i) => filteredResults[i] || null);
-      slotLocked      = [false, false, false, false, false];
-      slotTagLocks    = [{}, {}, {}, {}, {}];
-      slotAttrLocked  = Array.from({ length: 5 }, () => activeAttributes.map(() => false));
-      nextIndex       = Math.min(5, filteredResults.length);
-      rollHistory     = [];
+      slotLocked   = [false, false, false, false, false];
+      slotTagLocks = [{}, {}, {}, {}, {}];
+      nextIndex    = Math.min(5, filteredResults.length);
+      rollHistory  = [];
       renderSlots(true);
     }
 
@@ -543,11 +440,9 @@
       if (showStatus && statusEl) statusEl.classList.add('is-visible');
       setLoading(true);
 
-      const attrTerms = activeAttributes.map(a => a.value).join(' ');
-      const fullQuery = attrTerms ? `${query} ${attrTerms}` : query;
 
       try {
-        const url  = `${API_BASE}/search?q=${encodeURIComponent(fullQuery)}&k=${FETCH_K}`;
+        const url  = `${API_BASE}/search?q=${encodeURIComponent(query)}&k=${FETCH_K}`;
         const resp = await fetch(url);
         if (!resp.ok) throw new Error(`Server returned ${resp.status}`);
         rankedResults = await resp.json();
@@ -591,10 +486,9 @@
       await new Promise(r => setTimeout(r, 350));
 
       rollHistory.push({
-        slotProducts:   [...slotProducts],
-        slotLocked:     [...slotLocked],
-        slotTagLocks:   slotTagLocks.map(l => ({...l})),
-        slotAttrLocked: slotAttrLocked.map(arr => [...(arr || [])]),
+        slotProducts: [...slotProducts],
+        slotLocked:   [...slotLocked],
+        slotTagLocks: slotTagLocks.map(l => ({...l})),
         nextIndex,
       });
       if (rollHistory.length > 50) rollHistory.shift();
@@ -703,12 +597,11 @@
       });
       await new Promise(r => setTimeout(r, 350));
 
-      const snap      = rollHistory.pop();
-      slotProducts    = snap.slotProducts;
-      slotLocked      = snap.slotLocked;
-      slotTagLocks    = snap.slotTagLocks;
-      slotAttrLocked  = snap.slotAttrLocked;
-      nextIndex       = snap.nextIndex;
+      const snap   = rollHistory.pop();
+      slotProducts = snap.slotProducts;
+      slotLocked   = snap.slotLocked;
+      slotTagLocks = snap.slotTagLocks;
+      nextIndex    = snap.nextIndex;
       renderSlots(unlockedIndices);
       setTimeout(() => { isFading = false; }, 700);
     }
@@ -747,10 +640,9 @@
         if (!product) return;
         dismissedIds.add(product.id);
         filteredResults   = filteredResults.filter(p => !dismissedIds.has(p.id));
-        slotProducts[slot]  = null;
-        slotLocked[slot]    = false;
-        slotTagLocks[slot]  = {};
-        slotAttrLocked[slot] = activeAttributes.map(() => false);
+        slotProducts[slot] = null;
+        slotLocked[slot]   = false;
+        slotTagLocks[slot] = {};
         compactSlots();
         rollHistory = [];
         renderSlots();
@@ -767,8 +659,7 @@
         slotLocked[slot] = !slotLocked[slot];
 
         if (!slotLocked[slot]) {
-          slotTagLocks[slot]  = {};
-          slotAttrLocked[slot] = activeAttributes.map(() => false);
+          slotTagLocks[slot] = {};
         }
 
         renderSlots(false);
@@ -793,111 +684,8 @@
         return;
       }
 
-      // Attribute remove (X button)
-      const attrRemoveBtn = e.target.closest('.attr-remove-btn');
-      if (attrRemoveBtn) {
-        e.stopPropagation();
-        const attrIdx = parseInt(attrRemoveBtn.dataset.attrIdx, 10);
-        activeAttributes.splice(attrIdx, 1);
-        for (let i = 0; i < 5; i++) {
-          if (slotAttrLocked[i]) slotAttrLocked[i].splice(attrIdx, 1);
-        }
-        // Re-evaluate slot locks in case the removed attr was the only lock
-        for (let i = 0; i < 5; i++) {
-          if (!slotColorLocked[i] && !slotMaterialLocked[i] &&
-              !(slotAttrLocked[i] && slotAttrLocked[i].some(Boolean))) {
-            slotLocked[i] = false;
-          }
-        }
-        runSearch(query, false);
-        return;
-      }
-
-      // Attribute lock
-      const attrLockBtn = e.target.closest('.attr-lock-btn');
-      if (attrLockBtn) {
-        e.stopPropagation();
-        const card    = attrLockBtn.closest('.product-card');
-        const slot    = parseInt(card.dataset.slot, 10);
-        const attrIdx = parseInt(attrLockBtn.dataset.attrIdx, 10);
-        if (!slotProducts[slot]) return;
-
-        if (!slotAttrLocked[slot]) slotAttrLocked[slot] = activeAttributes.map(() => false);
-        const isLocking = attrLockBtn.getAttribute('data-attr-locked') !== '1';
-        slotAttrLocked[slot][attrIdx] = isLocking;
-
-        if (isLocking) {
-          slotLocked[slot] = true;
-        } else {
-          slotLocked[slot] = slotAttrLocked[slot].some(Boolean) ||
-            Object.values(slotTagLocks[slot] || {}).some(Boolean);
-        }
-
-        renderSlots(false);
-        return;
-      }
     });
 
-    // ═══════════════════════════════════════════════════════════════════
-    //  ATTRIBUTE SEARCH DROPDOWN
-    // ═══════════════════════════════════════════════════════════════════
-    const attrInput    = document.querySelector('.attr-search-input');
-    const attrDropdown = document.getElementById('attrDropdown');
-    let   attrDropdownOptions = [];
-
-    function buildDropdownOptions(filterText) {
-      const category  = getSearchCategory(query);
-      const all       = getAllAttrOptions(category);
-      const available = all.filter(opt =>
-        !activeAttributes.some(a => a.attrName === opt.attrName && a.value === opt.value)
-      );
-      if (!filterText) return available;
-      const f = filterText.toLowerCase();
-      return available.filter(opt =>
-        opt.display.toLowerCase().includes(f) || opt.attrName.toLowerCase().includes(f)
-      );
-    }
-
-    function showAttrDropdown() {
-      const options = buildDropdownOptions(attrInput.value.trim());
-      attrDropdownOptions = options;
-      if (options.length === 0) {
-        attrDropdown.innerHTML = '';
-        attrDropdown.classList.remove('is-open');
-        return;
-      }
-      attrDropdown.innerHTML = options.map((opt, i) =>
-        `<div class="attr-dropdown-option" data-opt-idx="${i}">${opt.display}</div>`
-      ).join('');
-      attrDropdown.classList.add('is-open');
-    }
-
-    function hideAttrDropdown() {
-      attrDropdown.classList.remove('is-open');
-    }
-
-    attrInput.addEventListener('focus', showAttrDropdown);
-    attrInput.addEventListener('input', showAttrDropdown);
-    attrInput.addEventListener('blur', () => setTimeout(hideAttrDropdown, 150));
-
-    attrDropdown.addEventListener('mousedown', function (e) {
-      const optEl = e.target.closest('.attr-dropdown-option');
-      if (!optEl) return;
-      e.preventDefault(); // prevent blur from closing before we process click
-      const idx    = parseInt(optEl.dataset.optIdx, 10);
-      const chosen = attrDropdownOptions[idx];
-      if (!chosen) return;
-
-      activeAttributes.push({ attrName: chosen.attrName, value: chosen.value, display: chosen.display });
-      for (let i = 0; i < 5; i++) {
-        if (!slotAttrLocked[i]) slotAttrLocked[i] = [];
-        slotAttrLocked[i].push(false);
-      }
-
-      attrInput.value = '';
-      hideAttrDropdown();
-      runSearch(query, false);
-    });
 
     // ═══════════════════════════════════════════════════════════════════
     //  INIT — read query from URL, kick off async search
@@ -1095,14 +883,15 @@
     // ── Shared filter application (price + category) ─────────────────
     function matchesCategory(product) {
       if (categoryFilters.size === 0) return true;
-      const text = (product.name || '').toLowerCase();
-      // Check women first so "womens" doesn't accidentally match the men filter
-      const isWomen = /women|woman|womens|ladies|feminine/.test(text);
-      const isKids  = /\bkids?\b|children|\bchild\b|\bboys?\b|\bgirls?\b|toddler|junior|youth/.test(text);
-      const isMen   = /\bmen\b|\bmens\b|\bman\b|\bmale\b/.test(text) && !isWomen && !isKids;
-      if (categoryFilters.has('women') && isWomen) return true;
-      if (categoryFilters.has('men')   && isMen)   return true;
-      if (categoryFilters.has('kids')  && isKids)  return true;
+      // Use gender tag if available, otherwise fall back to name heuristics
+      const gender = (product.tags && product.tags.gender || '').toLowerCase();
+      const text   = (product.name || '').toLowerCase();
+      const isWomen  = gender ? gender.includes('women') : /women|woman|womens|ladies|feminine/.test(text);
+      const isMen    = gender ? gender.includes('men') && !gender.includes('women') : /\bmen\b|\bmens\b|\bman\b|\bmale\b/.test(text) && !isWomen;
+      const isUnisex = gender ? gender.includes('unisex') : /unisex/.test(text);
+      if (categoryFilters.has('women')  && isWomen)  return true;
+      if (categoryFilters.has('men')    && isMen)    return true;
+      if (categoryFilters.has('unisex') && isUnisex) return true;
       return false;
     }
 
@@ -1127,11 +916,10 @@
       });
 
       slotProducts    = Array.from({ length: 5 }, (_, i) => filteredResults[i] || null);
-      slotLocked      = [false, false, false, false, false];
-      slotTagLocks    = [{}, {}, {}, {}, {}];
-      slotAttrLocked  = Array.from({ length: 5 }, () => activeAttributes.map(() => false));
-      nextIndex       = Math.min(5, filteredResults.length);
-      rollHistory        = [];
+      slotLocked   = [false, false, false, false, false];
+      slotTagLocks = [{}, {}, {}, {}, {}];
+      nextIndex    = Math.min(5, filteredResults.length);
+      rollHistory  = [];
       renderSlots();
 
       track.style.transition = 'opacity 350ms linear';
@@ -1142,14 +930,12 @@
     // ── Price filter ──────────────────────────────────────────────────
     document.getElementById('priceSearchBtn').addEventListener('click', applyFilters);
 
-    // ── Category filter ───────────────────────────────────────────────
+    // ── Gender filter — updates state only; applied on next Roll/Generate ─
     document.querySelectorAll('.cat-cb-input').forEach(function (cb) {
       cb.addEventListener('change', function () {
-        const label = this.closest('.cat-cb-label');
-        label.classList.toggle('is-checked', this.checked);
+        this.closest('.cat-cb-label').classList.toggle('is-checked', this.checked);
         if (this.checked) categoryFilters.add(this.value);
         else              categoryFilters.delete(this.value);
-        applyFilters();
       });
     });
 
@@ -1243,10 +1029,7 @@
         const reorder = arr => { const [item] = arr.splice(slotIdx, 1); arr.splice(dropIdx, 0, item); };
         reorder(slotProducts);
         reorder(slotLocked);
-        reorder(slotColorLocked);
-        reorder(slotMaterials);
-        reorder(slotMaterialLocked);
-        reorder(slotAttrLocked);
+        reorder(slotTagLocks);
         renderSlots(false);
       }
     });
