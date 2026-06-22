@@ -163,10 +163,6 @@
     const API_BASE   = 'https://choice-architect-server-production.up.railway.app';
     const CATEGORIES = ['Tops', 'Bottoms', 'Outerwear', 'Shoes', 'Jewelry', 'Bags', 'Other'];
 
-    const MATERIALS = ['cotton','polyester','satin','nylon','wool','linen','denim','leather','silk','spandex'];
-    function randomMaterial() { return MATERIALS[Math.floor(Math.random() * MATERIALS.length)]; }
-    function formatMaterial(m) { return m ? m.charAt(0).toUpperCase() + m.slice(1) : ''; }
-
     const CATEGORY_QUERY = {
       'Tops':      't-shirt tank top long sleeve shirt sweater sweatshirt pullover top blouse polo tee hoodie',
       'Bottoms':   'pants jeans shorts skirt leggings trousers joggers sweatpants chinos culottes bermuda capris',
@@ -229,30 +225,128 @@
       localStorage.setItem('tca_outfits', JSON.stringify(cs));
     }
 
+    // ── Tag field helpers (mirrors search.html) ──────────────────────────
+    function getTagFieldValues(tags, field) {
+      if (!tags) return [];
+      if (field === 'color')    { const v = tags.color;   return Array.isArray(v) ? v : (v ? [v] : []); }
+      if (field === 'material') return tags.material ? [tags.material] : [];
+      if (field === 'pattern')  return tags.pattern  ? [tags.pattern]  : [];
+      if (field === 'occasion') { const v = tags.occasion; return Array.isArray(v) ? v : (v ? [v] : []); }
+      if (field === 'design')   { const d = tags.design; return Array.isArray(d) ? d : (typeof d === 'string' ? [d] : []); }
+      if (field.startsWith('design.')) {
+        const sub = field.slice(7), d = tags.design;
+        if (!d || typeof d !== 'object' || Array.isArray(d)) return [];
+        const v = d[sub]; return Array.isArray(v) ? v : (v ? [v] : []);
+      }
+      return [];
+    }
+
+    function satisfiesTagConstraints(product, constraints) {
+      for (const [field, allowed] of Object.entries(constraints)) {
+        const vals = getTagFieldValues(product.tags || {}, field);
+        if (!vals.some(v => allowed.has(v))) return false;
+      }
+      return true;
+    }
+
+    function getCGTagConstraints() {
+      const c = {};
+      slots.forEach((slot, i) => {
+        if (!slot.product || !slot.product.tags || !slotTagLocks[i]) return;
+        Object.entries(slotTagLocks[i]).forEach(([field, locked]) => {
+          if (!locked) return;
+          getTagFieldValues(slot.product.tags, field).forEach(v => {
+            if (!c[field]) c[field] = new Set();
+            c[field].add(v);
+          });
+        });
+      });
+      return c;
+    }
+
+    function getExploreTagConstraints() {
+      const c = {};
+      exploreSlotProducts.forEach((p, i) => {
+        if (!p || !p.tags || !exploreSlotTagLocks[i]) return;
+        Object.entries(exploreSlotTagLocks[i]).forEach(([field, locked]) => {
+          if (!locked) return;
+          getTagFieldValues(p.tags, field).forEach(v => {
+            if (!c[field]) c[field] = new Set();
+            c[field].add(v);
+          });
+        });
+      });
+      return c;
+    }
+
+    // ── Shared tag-rows builder (used by all card builders) ──────────────
+    function buildTagRows(product, tagLockState, lockBtnClass) {
+      const t = product && product.tags;
+      if (!t || typeof t !== 'object') return '';
+      const _DESIGN_LABEL = {
+        fit: 'Fit', length: 'Length', sleeve_length: 'Sleeve Length',
+        neckline: 'Neckline', rise: 'Rise',
+        heel_height: 'Heel Height', heel_type: 'Heel Type',
+      };
+      const lock = tagLockState || {};
+      const btn = field => {
+        const on = !!lock[field];
+        return `<button class="icon-btn ${lockBtnClass}" data-tag-field="${field}" aria-label="${on ? 'Unlock' : 'Lock'}">${on ? LOCK_CLOSED_SVG : LOCK_OPEN_SVG}</button>`;
+      };
+      const rows = [];
+      if (t.color) {
+        const vals = Array.isArray(t.color) ? t.color : [t.color];
+        if (vals.length) rows.push(`<div class="product-tag-row"><span class="product-detail">Color: ${vals.join(', ')}</span>${btn('color')}</div>`);
+      }
+      if (t.material) {
+        const m = t.material;
+        rows.push(`<div class="product-tag-row"><span class="product-detail">Material: ${m.charAt(0).toUpperCase() + m.slice(1)}</span>${btn('material')}</div>`);
+      }
+      const d = t.design;
+      if (d) {
+        if (typeof d === 'object' && !Array.isArray(d)) {
+          for (const [k, v] of Object.entries(d)) {
+            const field = 'design.' + k;
+            const label = _DESIGN_LABEL[k] || (k.charAt(0).toUpperCase() + k.slice(1).replace(/_/g, ' '));
+            const vals  = Array.isArray(v) ? v : [v];
+            rows.push(`<div class="product-tag-row"><span class="product-detail">${label}: ${vals.join(', ')}</span>${btn(field)}</div>`);
+          }
+        } else if (Array.isArray(d)) {
+          rows.push(`<div class="product-tag-row"><span class="product-detail">Design: ${d.join(', ')}</span>${btn('design')}</div>`);
+        } else if (typeof d === 'string') {
+          rows.push(`<div class="product-tag-row"><span class="product-detail">Design: ${d}</span>${btn('design')}</div>`);
+        }
+      }
+      if (t.pattern) {
+        rows.push(`<div class="product-tag-row"><span class="product-detail">Pattern: ${t.pattern}</span>${btn('pattern')}</div>`);
+      }
+      if (t.occasion) {
+        const vals = Array.isArray(t.occasion) ? t.occasion : [t.occasion];
+        if (vals.length) rows.push(`<div class="product-tag-row"><span class="product-detail">Occasion: ${vals.join(', ')}</span>${btn('occasion')}</div>`);
+      }
+      return rows.join('');
+    }
+
     // ── State ────────────────────────────────────────────────────────────
-    let collectionId       = '';
-    let slots              = [];
-    let savedSlots         = [];   // parallel to slots: true = saved to current collection
-    let slotMaterials      = [];
-    let slotMaterialLocked = [];
-    let slotColorLocked    = [];
+    let collectionId  = '';
+    let slots         = [];
+    let savedSlots    = [];   // parallel to slots: true = saved to current collection
+    let slotTagLocks  = [];   // per-slot {field: boolean} for attribute locks
     let genHistory    = [];
-    const FADE_MS     = 700;
     let isFading      = false;
     let isExploreFading = false;
     let hasGenerated  = false;
 
     // ── Explore section state ────────────────────────────────────────────
-    let exploreSourceSlotIdx    = null;   // which top slot triggered EXPLORE MORE
-    let exploreBaseProduct      = null;   // the product being explored
-    let exploreRankedResults    = [];
-    let exploreFilteredResults  = [];
-    let exploreSlotProducts     = [null, null, null, null, null];
-    let exploreSlotLocked       = [false, false, false, false, false];
-    let exploreSlotColorLocked  = [false, false, false, false, false];
-    let exploreColorFilterColors = new Set();
-    let exploreNextIndex        = 0;
-    let exploreRollHistory      = [];
+    let exploreSourceSlotIdx   = null;
+    let exploreBaseProduct     = null;
+    let exploreRankedResults   = [];
+    let exploreFilteredResults = [];
+    let exploreSlotProducts    = [null, null, null, null, null];
+    let exploreSlotLocked      = [false, false, false, false, false];
+    let exploreSlotTagLocks    = [{}, {}, {}, {}, {}];
+    let exploreNextIndex       = 0;
+    let exploreRollHistory     = [];
 
     // ── Init ─────────────────────────────────────────────────────────────
     function loadFromPreloadOrCollection(coll) {
@@ -267,12 +361,10 @@
           }
         }
       } catch {}
-      slots              = products.slice(0, 5).map(p => ({ type: 'locked', product: p }));
-      savedSlots         = slots.map((_, i) => i === 0);
-      slotMaterials      = slots.map(s => s.product?.tags?.material || randomMaterial());
-      slotMaterialLocked = slots.map(() => false);
-      slotColorLocked    = slots.map(() => false);
-      genHistory  = [];
+      slots        = products.slice(0, 5).map(p => ({ type: 'locked', product: p }));
+      savedSlots   = slots.map((_, i) => i === 0);
+      slotTagLocks = slots.map(() => ({}));
+      genHistory   = [];
       hasGenerated = false;
     }
 
@@ -328,14 +420,11 @@
         const isSaved = savedSlots[i] || false;
         const tmp = document.createElement('div');
         let isCard = false;
-        const mat    = slotMaterials[i]      || randomMaterial();
-        const matLk  = slotMaterialLocked[i] || false;
-        const colLk  = slotColorLocked[i]    || false;
         if (slot.type === 'locked') {
-          tmp.innerHTML = buildLockedCardHTML(slot.product, i, isSaved, mat, matLk, colLk).trim();
+          tmp.innerHTML = buildLockedCardHTML(slot.product, i, isSaved, slotTagLocks[i] || {}).trim();
           isCard = true;
         } else if (slot.product) {
-          tmp.innerHTML = buildGeneratedCardHTML(slot.product, i, slot.locked, isSaved, mat, matLk, colLk).trim();
+          tmp.innerHTML = buildGeneratedCardHTML(slot.product, i, slot.locked, isSaved, slotTagLocks[i] || {}).trim();
           isCard = true;
         } else {
           const canAdd  = slots.length < 5;
@@ -356,19 +445,13 @@
     }
 
     // ── Locked product card (from collection) ────────────────────────────
-    // Now includes a full overlay with EXPLORE MORE above PRODUCT WEBPAGE.
-    // Save icon: same outline bookmark as product generator page (same size & position).
-    // Persistent save badge: filled bookmark, shown outside overlay when is-saved and not hovering.
-    function buildLockedCardHTML(product, slotIdx, isSaved, material, isMaterialLocked, isColorLocked) {
+    function buildLockedCardHTML(product, slotIdx, isSaved, tagLockState) {
       const imgSrc    = product.image_url;
       const nameEsc   = product.name.replace(/&/g, '&amp;').replace(/</g, '&lt;');
-      const rawColor  = product.color;
-      const colorText = (rawColor && rawColor !== 'other')
-        ? 'Color: ' + rawColor.charAt(0).toUpperCase() + rawColor.slice(1)
-        : 'Color: Multicolor';
       const priceText = product.price != null ? '$' + Number(product.price).toFixed(2) : '$Price';
       const href      = product.link || '#';
       const linkAttrs = product.link ? ' target="_blank" rel="noopener"' : '';
+      const tagRows   = buildTagRows(product, tagLockState, 'cg-tag-lock-btn');
 
       return `<div class="product-card is-locked${isSaved ? ' is-saved' : ''}" data-slot-idx="${slotIdx}">
         <img class="product-img" src="${imgSrc}" alt="${nameEsc}" loading="lazy">
@@ -385,9 +468,8 @@
               <div class="dot"></div><div class="dot"></div><div class="dot"></div>
               <div class="dot"></div><div class="dot"></div><div class="dot"></div>
             </div>
-            <div style="width:24px;"></div>
+            <button class="icon-btn cg-locked-unlock-btn" data-slot-idx="${slotIdx}" aria-label="Unlock">${LOCK_CLOSED_SVG}</button>
           </div>
-          <button class="cg-locked-unlock-btn" data-slot-idx="${slotIdx}" aria-label="Unlock">${LOCK_CLOSED_SVG}</button>
           <div class="card-info">
             <div class="card-info-frozen">
               <h3 class="product-name">${nameEsc}</h3>
@@ -397,21 +479,12 @@
                 <span class="product-rating">${STAR_SVG} 5.0</span>
               </div>
             </div>
-            <div class="card-attrs-scroll">
-              <div class="product-color-row">
-                <span class="product-detail color-label">${colorText}</span>
-                <button class="icon-btn cg-color-lock-btn" data-slot-idx="${slotIdx}" aria-label="${isColorLocked ? 'Unlock color' : 'Lock color'}">${isColorLocked ? LOCK_CLOSED_SVG : LOCK_OPEN_SVG}</button>
-              </div>
-              <div class="product-material-row">
-                <span class="product-detail material-label">Material: ${formatMaterial(material)}</span>
-                <button class="icon-btn cg-material-lock-btn" data-slot-idx="${slotIdx}" aria-label="${isMaterialLocked ? 'Unlock material' : 'Lock material'}">${isMaterialLocked ? LOCK_CLOSED_SVG : LOCK_OPEN_SVG}</button>
-              </div>
-            </div>
+            <div class="card-attrs-scroll">${tagRows}</div>
           </div>
           <div class="card-footer-stack">
             <div class="card-footer">
               <button class="explore-more-btn" data-slot-idx="${slotIdx}">EXPLORE MORE</button>
-              <div style="width: 27px; flex-shrink: 0;"></div>
+              <div style="width:27px;flex-shrink:0;"></div>
             </div>
             <div class="card-footer">
               <a href="${href}"${linkAttrs} class="product-webpage-btn">Product Webpage</a>
@@ -444,18 +517,13 @@
     }
 
     // ── Generated product card ────────────────────────────────────────────
-    // EXPLORE MORE button sits above PRODUCT WEBPAGE (same size, rounded corners, font).
-    // Persistent save badge: filled bookmark, visible when is-saved and not hovering.
-    function buildGeneratedCardHTML(product, slotIdx, isLocked, isSaved, material, isMaterialLocked, isColorLocked) {
-      const imgSrc   = product.image_url;
-      const nameEsc  = product.name.replace(/&/g, '&amp;').replace(/</g, '&lt;');
-      const rawColor = product.color;
-      const colorText = (rawColor && rawColor !== 'other')
-        ? 'Color: ' + rawColor.charAt(0).toUpperCase() + rawColor.slice(1)
-        : 'Color: Multicolor';
+    function buildGeneratedCardHTML(product, slotIdx, isLocked, isSaved, tagLockState) {
+      const imgSrc    = product.image_url;
+      const nameEsc   = product.name.replace(/&/g, '&amp;').replace(/</g, '&lt;');
       const priceText = product.price != null ? '$' + Number(product.price).toFixed(2) : '$Price';
       const href      = product.link || '#';
       const linkAttrs = product.link ? ' target="_blank" rel="noopener"' : '';
+      const tagRows   = buildTagRows(product, tagLockState, 'cg-tag-lock-btn');
 
       const lockBtn = `<button class="icon-btn cg-lock-btn" data-slot-idx="${slotIdx}" aria-label="${isLocked ? 'Unlock' : 'Lock'}">${isLocked ? LOCK_CLOSED_SVG : LOCK_OPEN_SVG}</button>`;
       const persistBadge = isLocked
@@ -488,19 +556,13 @@
                 <span class="product-rating">${STAR_SVG} 5.0</span>
               </div>
             </div>
-            <div class="card-attrs-scroll">
-              <div class="product-color-row">
-                <span class="product-detail color-label">${colorText}</span>
-                <button class="icon-btn cg-color-lock-btn" data-slot-idx="${slotIdx}" aria-label="${isColorLocked ? 'Unlock color' : 'Lock color'}">${isColorLocked ? LOCK_CLOSED_SVG : LOCK_OPEN_SVG}</button>
-              </div>
-              <div class="product-material-row">
-                <span class="product-detail material-label">Material: ${formatMaterial(material)}</span>
-                <button class="icon-btn cg-material-lock-btn" data-slot-idx="${slotIdx}" aria-label="${isMaterialLocked ? 'Unlock material' : 'Lock material'}">${isMaterialLocked ? LOCK_CLOSED_SVG : LOCK_OPEN_SVG}</button>
-              </div>
-            </div>
+            <div class="card-attrs-scroll">${tagRows}</div>
           </div>
           <div class="card-footer-stack">
-            <button class="explore-more-btn" data-slot-idx="${slotIdx}">EXPLORE MORE</button>
+            <div class="card-footer">
+              <button class="explore-more-btn" data-slot-idx="${slotIdx}">EXPLORE MORE</button>
+              <div style="width:27px;flex-shrink:0;"></div>
+            </div>
             <div class="card-footer">
               <a href="${href}"${linkAttrs} class="product-webpage-btn">Product Webpage</a>
               <button class="save-btn cg-save-btn" data-slot-idx="${slotIdx}" aria-label="Save to outfit">${SAVE_SVG}</button>
@@ -510,17 +572,14 @@
       </div>`;
     }
 
-    // ── Explore section card (ADD PRODUCT above PRODUCT WEBPAGE, no save) ─
-    function buildExploreCardHTML(product, slotIdx, isLocked) {
-      const imgSrc   = product.image_url;
-      const nameEsc  = product.name.replace(/&/g, '&amp;').replace(/</g, '&lt;');
-      const rawColor = product.color;
-      const colorText = (rawColor && rawColor !== 'other')
-        ? 'Color: ' + rawColor.charAt(0).toUpperCase() + rawColor.slice(1)
-        : 'Color: Multicolor';
+    // ── Explore section card ──────────────────────────────────────────────
+    function buildExploreCardHTML(product, slotIdx, isLocked, tagLockState) {
+      const imgSrc    = product.image_url;
+      const nameEsc   = product.name.replace(/&/g, '&amp;').replace(/</g, '&lt;');
       const priceText = product.price != null ? '$' + Number(product.price).toFixed(2) : '$Price';
       const href      = product.link || '#';
       const linkAttrs = product.link ? ' target="_blank" rel="noopener"' : '';
+      const tagRows   = buildTagRows(product, tagLockState, 'cg-explore-tag-lock-btn');
 
       const lockBtn = `<button class="icon-btn cg-explore-lock-btn" data-slot="${slotIdx}" aria-label="${isLocked ? 'Unlock' : 'Lock'}">${isLocked ? LOCK_CLOSED_SVG : LOCK_OPEN_SVG}</button>`;
       const persistBadge = isLocked
@@ -553,15 +612,15 @@
             ${lockBtn}
           </div>
           <div class="card-info">
-            <h3 class="product-name">${nameEsc}</h3>
-            <span class="product-brand">Brand name</span>
-            <div class="product-price-rating">
-              <span>${priceText}</span>
-              <span class="product-rating">${STAR_SVG} 5.0</span>
+            <div class="card-info-frozen">
+              <h3 class="product-name">${nameEsc}</h3>
+              <span class="product-brand">Brand name</span>
+              <div class="product-price-rating">
+                <span>${priceText}</span>
+                <span class="product-rating">${STAR_SVG} 5.0</span>
+              </div>
             </div>
-            <div class="product-color-row">
-              <span class="product-detail color-label">${colorText}</span>
-            </div>
+            <div class="card-attrs-scroll">${tagRows}</div>
           </div>
           <div class="card-footer-stack">
             <button class="add-product-btn" data-slot="${slotIdx}">ADD PRODUCT</button>
@@ -589,7 +648,7 @@
       exploreSlotProducts.forEach((product, i) => {
         if (!product) return;
         const tmp = document.createElement('div');
-        tmp.innerHTML = buildExploreCardHTML(product, i, exploreSlotLocked[i]).trim();
+        tmp.innerHTML = buildExploreCardHTML(product, i, exploreSlotLocked[i], exploreSlotTagLocks[i] || {}).trim();
         const el = tmp.firstElementChild;
         if (animate && (!(animate instanceof Set) || animate.has(i))) el.classList.add('card-fade-in');
         grid.insertBefore(el, noResults);
@@ -659,11 +718,6 @@
         }));
       } finally {
         // Always re-render and unblock, even if a fetch threw
-        slots.forEach((slot, i) => {
-          if (slot.type === 'picker' && !slot.locked && !slotMaterialLocked[i] && slot.product) {
-            slotMaterials[i] = slot.product.tags?.material || randomMaterial();
-          }
-        });
         renderAll(changingIndices);
         setTimeout(() => { isFading = false; }, 700);
       }
@@ -705,12 +759,11 @@
       document.getElementById('exploreSectionTitle').textContent = product.name;
 
       // Seed explore grid: product in slot 0 (locked), rest empty for now
-      exploreSlotProducts    = [product, null, null, null, null];
-      exploreSlotLocked      = [true, false, false, false, false];
-      exploreSlotColorLocked = [false, false, false, false, false];
-      exploreColorFilterColors.clear();
-      exploreRollHistory     = [];
-      exploreNextIndex       = 0;
+      exploreSlotProducts  = [product, null, null, null, null];
+      exploreSlotLocked    = [true, false, false, false, false];
+      exploreSlotTagLocks  = [{}, {}, {}, {}, {}];
+      exploreRollHistory   = [];
+      exploreNextIndex     = 0;
       renderExploreSlots();
 
       // Show section
@@ -728,22 +781,23 @@
 
     async function fetchExploreProducts() {
       if (!exploreBaseProduct) return;
-
       const pid = exploreBaseProduct.id;
-
       try {
-        const url  = `${API_BASE}/search_by_image?url=${encodeURIComponent(exploreBaseProduct.image_url)}&k=200&exclude=${encodeURIComponent(pid)}`;
+        const url  = `${API_BASE}/search_by_image?url=${encodeURIComponent(exploreBaseProduct.image_url)}&k=200`;
         const resp = await fetch(url);
         if (!resp.ok) throw new Error('Server ' + resp.status);
         const data = await resp.json();
         exploreRankedResults   = data;
         exploreFilteredResults = data.filter(p => p.id !== pid);
+        // Shuffle so initial fill is random, not always the top-similarity products
+        const pool = [...exploreFilteredResults];
+        for (let i = pool.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [pool[i], pool[j]] = [pool[j], pool[i]];
+        }
         exploreSlotProducts = [
           exploreBaseProduct,
-          exploreFilteredResults[0] || null,
-          exploreFilteredResults[1] || null,
-          exploreFilteredResults[2] || null,
-          exploreFilteredResults[3] || null,
+          pool[0] || null, pool[1] || null, pool[2] || null, pool[3] || null,
         ];
         exploreNextIndex = Math.min(4, exploreFilteredResults.length);
         renderExploreSlots();
@@ -773,10 +827,9 @@
         exploreFilteredResults[2] || null,
         exploreFilteredResults[3] || null,
       ];
-      exploreSlotLocked      = [true, false, false, false, false];
-      exploreSlotColorLocked = [false, false, false, false, false];
-      exploreColorFilterColors.clear();
-      exploreNextIndex    = Math.min(4, exploreFilteredResults.length);
+      exploreSlotLocked    = [true, false, false, false, false];
+      exploreSlotTagLocks  = [{}, {}, {}, {}, {}];
+      exploreNextIndex     = Math.min(4, exploreFilteredResults.length);
       exploreRollHistory  = [];
       renderExploreSlots();
     }
@@ -785,15 +838,15 @@
     async function doExploreRoll() {
       if (exploreFilteredResults.length === 0 || isExploreFading) return;
 
-      const unlockedIndices = new Set(
+      const slotsToReplace = new Set(
         exploreSlotProducts.reduce((acc, p, i) => { if (p && !exploreSlotLocked[i]) acc.push(i); return acc; }, [])
       );
-      if (unlockedIndices.size === 0) return;
+      if (slotsToReplace.size === 0) return;
       isExploreFading = true;
 
       const grid = document.getElementById('exploreGrid');
       grid.querySelectorAll('.product-card').forEach(el => {
-        if (unlockedIndices.has(parseInt(el.dataset.slot, 10))) {
+        if (slotsToReplace.has(parseInt(el.dataset.slot, 10))) {
           el.style.transition = 'opacity 350ms linear';
           el.style.opacity    = '0';
         }
@@ -801,42 +854,72 @@
       await new Promise(r => setTimeout(r, 350));
 
       exploreRollHistory.push({
-        exploreSlotProducts:     [...exploreSlotProducts],
-        exploreSlotLocked:       [...exploreSlotLocked],
-        exploreSlotColorLocked:  [...exploreSlotColorLocked],
-        exploreColorFilterColors: new Set(exploreColorFilterColors),
+        exploreSlotProducts:  [...exploreSlotProducts],
+        exploreSlotLocked:    [...exploreSlotLocked],
+        exploreSlotTagLocks:  exploreSlotTagLocks.map(o => ({...o})),
         exploreNextIndex,
       });
       if (exploreRollHistory.length > 50) exploreRollHistory.shift();
 
-      const lockedIds = new Set(exploreSlotProducts.filter((p, i) => exploreSlotLocked[i] && p).map(p => p.id));
-      const shownIds  = new Set(exploreSlotProducts.filter((p, i) => !exploreSlotLocked[i] && p).map(p => p.id));
+      const lockedProds = exploreSlotProducts.filter((p, i) => exploreSlotLocked[i] && p);
+      const baseIds = new Set(exploreFilteredResults.map(p => p.id));
+      const constraints = getExploreTagConstraints();
+      const hasConstraints = Object.keys(constraints).length > 0;
 
-      const total = exploreFilteredResults.length;
-      const fresh = [], stale = [];
-      for (let i = 0; i < total; i++) {
-        const p = exploreFilteredResults[(exploreNextIndex + i) % total];
-        if (lockedIds.has(p.id)) continue;
-        (shownIds.has(p.id) ? stale : fresh).push(p);
+      let candidates;
+      try {
+        if (lockedProds.length > 0) {
+          // Visual similarity from locked products
+          const fetches = lockedProds.map(p =>
+            fetch(`${API_BASE}/search_by_image?url=${encodeURIComponent(p.image_url)}&k=${SIMILARITY_K}`)
+              .then(r => r.json()).catch(() => [])
+          );
+          const results = await Promise.all(fetches);
+          const seen = new Set(); candidates = [];
+          for (const arr of results) for (const p of arr) {
+            if (!seen.has(p.id)) { seen.add(p.id); candidates.push(p); }
+          }
+          candidates = candidates.filter(p => baseIds.has(p.id));
+        } else {
+          candidates = [...exploreFilteredResults];
+        }
+
+        const lockedIds = new Set(lockedProds.map(p => p.id));
+        candidates = candidates.filter(p => !lockedIds.has(p.id));
+
+        // Shuffle
+        for (let i = candidates.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+        }
+
+        let pool = hasConstraints
+          ? candidates.filter(p => satisfiesTagConstraints(p, constraints))
+          : candidates;
+
+        if (pool.length < slotsToReplace.size && hasConstraints) {
+          // Partial fallback: relax constraints one field at a time
+          const fields = Object.keys(constraints);
+          for (let drop = 1; drop <= fields.length && pool.length < slotsToReplace.size; drop++) {
+            const relaxed = {...constraints};
+            fields.slice(-drop).forEach(f => delete relaxed[f]);
+            pool = Object.keys(relaxed).length > 0
+              ? candidates.filter(p => satisfiesTagConstraints(p, relaxed))
+              : candidates;
+          }
+        }
+
+        pool = pool.slice(0, slotsToReplace.size);
+
+        let poolIdx = 0;
+        exploreSlotProducts = exploreSlotProducts.map((p, i) => {
+          if (slotsToReplace.has(i) && poolIdx < pool.length) return pool[poolIdx++];
+          return p;
+        });
+      } finally {
+        renderExploreSlots(slotsToReplace);
+        setTimeout(() => { isExploreFading = false; }, 700);
       }
-      let pool = [...fresh, ...stale];
-
-      if (exploreColorFilterColors.size > 0) {
-        const hits   = pool.filter(p => p.color && exploreColorFilterColors.has(p.color));
-        const misses = pool.filter(p => !p.color || !exploreColorFilterColors.has(p.color));
-        pool = [...hits, ...misses];
-      }
-      pool = pool.slice(0, unlockedIndices.size);
-      exploreNextIndex = (exploreNextIndex + Math.max(unlockedIndices.size, 1)) % total;
-
-      let poolIdx = 0;
-      exploreSlotProducts = exploreSlotProducts.map((p, i) => {
-        if (!exploreSlotLocked[i] && poolIdx < pool.length) return pool[poolIdx++];
-        return p;
-      });
-
-      renderExploreSlots(unlockedIndices);
-      setTimeout(() => { isExploreFading = false; }, 700);
     }
 
     async function doExploreUndo() {
@@ -856,11 +939,10 @@
       await new Promise(r => setTimeout(r, 350));
 
       const snap = exploreRollHistory.pop();
-      exploreSlotProducts      = snap.exploreSlotProducts;
-      exploreSlotLocked        = snap.exploreSlotLocked;
-      exploreSlotColorLocked   = snap.exploreSlotColorLocked;
-      exploreColorFilterColors = snap.exploreColorFilterColors;
-      exploreNextIndex         = snap.exploreNextIndex;
+      exploreSlotProducts  = snap.exploreSlotProducts;
+      exploreSlotLocked    = snap.exploreSlotLocked;
+      exploreSlotTagLocks  = snap.exploreSlotTagLocks;
+      exploreNextIndex     = snap.exploreNextIndex;
       renderExploreSlots(unlockedIndices);
       setTimeout(() => { isExploreFading = false; }, 700);
     }
@@ -913,9 +995,7 @@
         const idx = parseInt(addBtn.dataset.slotIdx, 10);
         slots.splice(idx + 1, 0, newPickerSlot());
         savedSlots.splice(idx + 1, 0, false);
-        slotMaterials.splice(idx + 1, 0, randomMaterial());
-        slotMaterialLocked.splice(idx + 1, 0, false);
-        slotColorLocked.splice(idx + 1, 0, false);
+        slotTagLocks.splice(idx + 1, 0, {});
         renderAll();
         return;
       }
@@ -927,15 +1007,10 @@
         const idx = parseInt(dismissBtn.dataset.slotIdx, 10);
         slots.splice(idx, 1);
         savedSlots.splice(idx, 1);
-        slotMaterials.splice(idx, 1);
-        slotMaterialLocked.splice(idx, 1);
-        slotColorLocked.splice(idx, 1);
+        slotTagLocks.splice(idx, 1);
         if (slots.length === 0) {
-          slots.push(newPickerSlot()); savedSlots.push(false);
-          slotMaterials.push(randomMaterial()); slotMaterialLocked.push(false);
-          slotColorLocked.push(false);
+          slots.push(newPickerSlot()); savedSlots.push(false); slotTagLocks.push({});
         }
-        // Leftmost slot (new index 0) always stays saved
         if (savedSlots.length > 0) savedSlots[0] = true;
         renderAll();
         return;
@@ -948,30 +1023,23 @@
         const afterIdx = parseInt(insertBtn.dataset.insertAfter, 10);
         slots.splice(afterIdx + 1, 0, newPickerSlot());
         savedSlots.splice(afterIdx + 1, 0, false);
-        slotMaterials.splice(afterIdx + 1, 0, randomMaterial());
-        slotMaterialLocked.splice(afterIdx + 1, 0, false);
-        slotColorLocked.splice(afterIdx + 1, 0, false);
+        slotTagLocks.splice(afterIdx + 1, 0, {});
         renderAll();
         return;
       }
 
-      // Toggle color lock
-      const colorLockBtn = e.target.closest('.cg-color-lock-btn');
-      if (colorLockBtn) {
+      // Tag attribute lock (main section)
+      const cgTagLockBtn = e.target.closest('.cg-tag-lock-btn');
+      if (cgTagLockBtn) {
         e.stopPropagation();
-        const idx = parseInt(colorLockBtn.dataset.slotIdx, 10);
-        slotColorLocked[idx] = !slotColorLocked[idx];
-        renderAll();
-        return;
-      }
-
-      // Toggle material lock
-      const materialLockBtn = e.target.closest('.cg-material-lock-btn');
-      if (materialLockBtn) {
-        e.stopPropagation();
-        const idx = parseInt(materialLockBtn.dataset.slotIdx, 10);
-        slotMaterialLocked[idx] = !slotMaterialLocked[idx];
-        renderAll();
+        const card  = cgTagLockBtn.closest('[data-slot-idx]');
+        const idx   = parseInt(card.dataset.slotIdx, 10);
+        const field = cgTagLockBtn.dataset.tagField;
+        if (!slotTagLocks[idx]) slotTagLocks[idx] = {};
+        slotTagLocks[idx][field] = !slotTagLocks[idx][field];
+        // Auto-lock slot when attribute is locked
+        if (slotTagLocks[idx][field] && slots[idx]) slots[idx].locked = true;
+        renderAll(false);
         return;
       }
 
@@ -1036,21 +1104,27 @@
         e.stopPropagation();
         const slotIdx = parseInt(lockBtn.dataset.slot, 10);
         exploreSlotLocked[slotIdx] = !exploreSlotLocked[slotIdx];
-
-        if (!exploreSlotLocked[slotIdx] && exploreSlotColorLocked[slotIdx]) {
-          exploreSlotColorLocked[slotIdx] = false;
-          exploreColorFilterColors.clear();
-          exploreSlotProducts.forEach((p, i) => {
-            if (p && exploreSlotColorLocked[i] && p.color) exploreColorFilterColors.add(p.color);
-          });
-        }
-
         const card = lockBtn.closest('.product-card');
         card.querySelectorAll('.cg-explore-lock-btn').forEach(btn => {
           btn.innerHTML = exploreSlotLocked[slotIdx] ? LOCK_CLOSED_SVG : LOCK_OPEN_SVG;
           btn.setAttribute('aria-label', exploreSlotLocked[slotIdx] ? 'Unlock' : 'Lock');
         });
         card.classList.toggle('is-locked', exploreSlotLocked[slotIdx]);
+        return;
+      }
+
+      // Tag attribute lock (explore section)
+      const exploreTagLockBtn = e.target.closest('.cg-explore-tag-lock-btn');
+      if (exploreTagLockBtn) {
+        e.stopPropagation();
+        const card    = exploreTagLockBtn.closest('[data-slot]');
+        const slotIdx = parseInt(card.dataset.slot, 10);
+        const field   = exploreTagLockBtn.dataset.tagField;
+        if (!exploreSlotTagLocks[slotIdx]) exploreSlotTagLocks[slotIdx] = {};
+        exploreSlotTagLocks[slotIdx][field] = !exploreSlotTagLocks[slotIdx][field];
+        // Auto-lock slot when attribute is locked
+        if (exploreSlotTagLocks[slotIdx][field]) exploreSlotLocked[slotIdx] = true;
+        renderExploreSlots(false);
         return;
       }
 
@@ -1068,9 +1142,9 @@
       if (dismissBtn) {
         e.stopPropagation();
         const slotIdx = parseInt(dismissBtn.dataset.slot, 10);
-        exploreSlotProducts[slotIdx]    = null;
-        exploreSlotLocked[slotIdx]      = false;
-        exploreSlotColorLocked[slotIdx] = false;
+        exploreSlotProducts[slotIdx]  = null;
+        exploreSlotLocked[slotIdx]    = false;
+        exploreSlotTagLocks[slotIdx]  = {};
         renderExploreSlots();
         return;
       }
@@ -1173,7 +1247,7 @@
         const reorder = arr => { const [item] = arr.splice(slotIdx, 1); arr.splice(dropIdx, 0, item); };
         reorder(exploreSlotProducts);
         reorder(exploreSlotLocked);
-        reorder(exploreSlotColorLocked);
+        reorder(exploreSlotTagLocks);
         renderExploreSlots(false);
       }
     });
@@ -1456,14 +1530,10 @@
       if (slotIdx !== dropIdx) {
         const [ms]  = slots.splice(slotIdx, 1);
         const [mv]  = savedSlots.splice(slotIdx, 1);
-        const [mm]  = slotMaterials.splice(slotIdx, 1);
-        const [mml] = slotMaterialLocked.splice(slotIdx, 1);
-        const [mcl] = slotColorLocked.splice(slotIdx, 1);
+        const [mtl] = slotTagLocks.splice(slotIdx, 1);
         slots.splice(dropIdx, 0, ms);
         savedSlots.splice(dropIdx, 0, mv);
-        slotMaterials.splice(dropIdx, 0, mm);
-        slotMaterialLocked.splice(dropIdx, 0, mml);
-        slotColorLocked.splice(dropIdx, 0, mcl);
+        slotTagLocks.splice(dropIdx, 0, mtl);
       }
       renderAll();
     });
@@ -1558,7 +1628,7 @@
         const reorder = arr => { const [item] = arr.splice(slotIdx, 1); arr.splice(dropIdx, 0, item); };
         reorder(exploreSlotProducts);
         reorder(exploreSlotLocked);
-        reorder(exploreSlotColorLocked);
+        reorder(exploreSlotTagLocks);
         renderExploreSlots(false);
       }
     });
