@@ -810,7 +810,7 @@ body {
   top: 30%;
   left: 15px;
   right: 10px;
-  bottom: 85px;
+  bottom: 60px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -1126,6 +1126,12 @@ body {
 .card-attrs-scroll::-webkit-scrollbar-thumb {
   background: rgba(255, 250, 245, 0.35);
   border-radius: 2px;
+}
+
+/* Outfit-generator cards have a two-row footer stack — need extra bottom clearance */
+#cgProductsGrid .card-info,
+#exploreGrid .card-info {
+  bottom: 85px;
 }
 
 /* ── Tag chips ─────────────────────────────────────────────────────── */

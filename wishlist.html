@@ -63,7 +63,6 @@
   <div class="confirm-modal-overlay" id="confirmModal" role="dialog" aria-modal="true">
     <div class="confirm-modal-box">
       <p class="confirm-modal-title">Are you sure?</p>
-      <p class="confirm-modal-sub">You can't undo this action.</p>
       <div class="confirm-modal-actions">
         <button class="confirm-modal-cancel" id="confirmCancelBtn">Cancel</button>
         <button class="confirm-modal-confirm" id="confirmRemoveBtn">Remove</button>
@@ -214,6 +213,47 @@
     });
 
     // ── Build one card ──────────────────────────────────────────────────
+    function buildTagRows(product) {
+      const t = product && product.tags;
+      if (!t || typeof t !== 'object') return '';
+      const _DESIGN_LABEL = {
+        fit: 'Fit', length: 'Length', sleeve_length: 'Sleeve Length',
+        neckline: 'Neckline', rise: 'Rise',
+        heel_height: 'Heel Height', heel_type: 'Heel Type',
+      };
+      const rows = [];
+      if (t.color) {
+        const vals = Array.isArray(t.color) ? t.color : [t.color];
+        if (vals.length) rows.push(`<div class="product-tag-row"><span class="product-detail">Color: ${vals.join(', ')}</span></div>`);
+      }
+      if (t.material) {
+        const m = t.material;
+        rows.push(`<div class="product-tag-row"><span class="product-detail">Material: ${m.charAt(0).toUpperCase() + m.slice(1)}</span></div>`);
+      }
+      const d = t.design;
+      if (d) {
+        if (typeof d === 'object' && !Array.isArray(d)) {
+          for (const [k, v] of Object.entries(d)) {
+            const label = _DESIGN_LABEL[k] || (k.charAt(0).toUpperCase() + k.slice(1).replace(/_/g, ' '));
+            const vals  = Array.isArray(v) ? v : [v];
+            rows.push(`<div class="product-tag-row"><span class="product-detail">${label}: ${vals.join(', ')}</span></div>`);
+          }
+        } else if (Array.isArray(d)) {
+          rows.push(`<div class="product-tag-row"><span class="product-detail">Design: ${d.join(', ')}</span></div>`);
+        } else if (typeof d === 'string') {
+          rows.push(`<div class="product-tag-row"><span class="product-detail">Design: ${d}</span></div>`);
+        }
+      }
+      if (t.pattern) {
+        rows.push(`<div class="product-tag-row"><span class="product-detail">Pattern: ${t.pattern}</span></div>`);
+      }
+      if (t.occasion) {
+        const vals = Array.isArray(t.occasion) ? t.occasion : [t.occasion];
+        if (vals.length) rows.push(`<div class="product-tag-row"><span class="product-detail">Occasion: ${vals.join(', ')}</span></div>`);
+      }
+      return rows.join('');
+    }
+
     function buildCardHTML(product) {
       const imgSrc    = product.image_url;
       const nameEsc   = (product.name || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
@@ -222,6 +262,7 @@
         : '$Price';
       const href      = product.link || '#';
       const linkAttrs = product.link ? ' target="_blank" rel="noopener"' : '';
+      const tagRows   = buildTagRows(product);
 
       return `<div class="product-card" data-id="${product.id}">
         <img class="product-img" src="${imgSrc}" alt="${nameEsc}" loading="lazy">
@@ -240,12 +281,15 @@
             <div style="width:24px;"></div>
           </div>
           <div class="card-info">
-            <h3 class="product-name">${nameEsc}</h3>
-            <span class="product-brand">Brand name</span>
-            <div class="product-price-rating">
-              <span>${priceText}</span>
-              <span class="product-rating">${STAR_SVG} 5.0</span>
+            <div class="card-info-frozen">
+              <h3 class="product-name">${nameEsc}</h3>
+              <span class="product-brand">Brand name</span>
+              <div class="product-price-rating">
+                <span>${priceText}</span>
+                <span class="product-rating">${STAR_SVG} 5.0</span>
+              </div>
             </div>
+            <div class="card-attrs-scroll">${tagRows}</div>
           </div>
           <div class="card-footer">
             <a href="${href}"${linkAttrs} class="product-webpage-btn">Product Webpage</a>
