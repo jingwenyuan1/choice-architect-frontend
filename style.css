@@ -1033,6 +1033,12 @@ body {
   color: var(--dark);
 }
 
+.nav-arrow-btn:disabled {
+  opacity: 0.25;
+  cursor: default;
+  pointer-events: none;
+}
+
 .roll-section {
   display: flex;
   justify-content: center;

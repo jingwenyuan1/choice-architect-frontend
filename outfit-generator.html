@@ -397,6 +397,7 @@
       genHistory   = [];
       genRedoHistory = [];
       hasGenerated = false;
+      syncRedoBtn();
     }
 
     function showGrid() {
@@ -711,6 +712,7 @@
       )));
       if (genHistory.length > 50) genHistory.shift();
       genRedoHistory = [];
+      syncRedoBtn();
 
       const pinnedIds = new Set(
         slots.filter(s => s.locked && s.product).map(s => s.product.id)
@@ -747,6 +749,11 @@
       }
     }
 
+    function syncRedoBtn() {
+      const btn = document.getElementById('cgNextBtn');
+      if (btn) btn.disabled = genRedoHistory.length === 0;
+    }
+
     async function doUndo() {
       if (genHistory.length === 0 || isFading) return;
       isFading = true;
@@ -758,6 +765,7 @@
       await new Promise(r => setTimeout(r, 350));
 
       genRedoHistory.push(JSON.parse(JSON.stringify(slots.map(s => ({ ...s, resultsCache: null })))));
+      syncRedoBtn();
       const snap = genHistory.pop();
       snap.forEach((s, i) => {
         if (slots[i]) {
@@ -783,6 +791,7 @@
 
       genHistory.push(JSON.parse(JSON.stringify(slots.map(s => ({ ...s, resultsCache: null })))));
       const snap = genRedoHistory.pop();
+      syncRedoBtn();
       snap.forEach((s, i) => {
         if (slots[i]) {
           slots[i].category  = s.category;
