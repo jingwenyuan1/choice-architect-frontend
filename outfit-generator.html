@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -19,8 +19,8 @@
           </svg>
         </button>
         <div class="avatar-dropdown" id="avatarDropdown">
-          <a href="collections.html" class="avatar-dropdown-item">My Outfits</a>
-          <a href="wishlist.html" class="avatar-dropdown-item">My Wishlist</a>
+          <a href="my-outfits.html" class="avatar-dropdown-item">My Outfits</a>
+          <a href="my-wishlists.html" class="avatar-dropdown-item">My Wishlists</a>
           <a href="purchases.html" class="avatar-dropdown-item">My Purchases</a>
         </div>
       </div>
@@ -137,24 +137,46 @@
     <div class="save-modal-box" id="conflictModalBox"></div>
   </div>
 
-  <!-- ── Save to outfit modal ──────────────────── -->
+  <!-- ── Save modal ──────────────────────────────── -->
   <div class="save-modal-overlay" id="saveModal" role="dialog" aria-modal="true">
     <div class="save-modal-box">
-      <button class="save-modal-close" id="saveModalClose">&#x2715;</button>
-      <h2 class="save-modal-title">Save to outfit</h2>
-      <div class="save-modal-input-row">
-        <input type="text" id="saveModalInput" class="save-modal-input" placeholder="New outfit name" autocomplete="off">
-        <button class="save-modal-add-btn" id="saveModalAddBtn">
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-            <line x1="1" y1="6" x2="11" y2="6" stroke="#fffaf5" stroke-width="1.5" stroke-linecap="round"/>
-            <line x1="6" y1="1" x2="6" y2="11" stroke="#fffaf5" stroke-width="1.5" stroke-linecap="round"/>
-          </svg>
-        </button>
+      <h2 class="save-modal-title">Save</h2>
+
+      <div class="save-tabs" id="saveTabs">
+        <button class="save-tab is-active" data-tab="outfit">Outfit</button>
+        <button class="save-tab" data-tab="wishlist">Wishlist</button>
+        <span class="save-tab-indicator"></span>
       </div>
-      <div class="save-modal-list" id="saveModalList"></div>
-      <div class="save-modal-actions" id="saveModalActions" style="display:none;">
-        <button class="save-modal-cancel-btn" id="saveModalCancelBtn">Cancel</button>
-        <button class="save-modal-confirm-btn" id="saveModalConfirmBtn">Save Changes</button>
+
+      <div class="save-tab-panel is-active" data-panel="outfit">
+        <div class="save-modal-input-row">
+          <input type="text" id="saveOutfitInput" class="save-modal-input" placeholder="New outfit name" autocomplete="off">
+          <button class="save-modal-add-btn" id="saveOutfitAddBtn" aria-label="Add outfit">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+              <line x1="1" y1="6" x2="11" y2="6" stroke="#fffaf5" stroke-width="1.5" stroke-linecap="round"/>
+              <line x1="6" y1="1" x2="6" y2="11" stroke="#fffaf5" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
+        <div class="save-modal-list" id="listOutfit"></div>
+      </div>
+
+      <div class="save-tab-panel" data-panel="wishlist">
+        <div class="save-modal-input-row">
+          <input type="text" id="saveWishlistInput" class="save-modal-input" placeholder="New wishlist name" autocomplete="off">
+          <button class="save-modal-add-btn" id="saveWishlistAddBtn" aria-label="Add wishlist">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+              <line x1="1" y1="6" x2="11" y2="6" stroke="#fffaf5" stroke-width="1.5" stroke-linecap="round"/>
+              <line x1="6" y1="1" x2="6" y2="11" stroke="#fffaf5" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
+        <div class="save-modal-list" id="listWishlist"></div>
+      </div>
+
+      <div class="save-modal-actions">
+        <button class="save-modal-cancel-btn" id="saveModalCancel">Cancel</button>
+        <button class="save-modal-confirm-btn" id="saveModalSave">Save</button>
       </div>
     </div>
   </div>
@@ -223,6 +245,12 @@
     }
     function saveOutfits(cs) {
       localStorage.setItem('tca_outfits', JSON.stringify(cs));
+    }
+    function getWishlists() {
+      return JSON.parse(localStorage.getItem('tca_wishlists') || '[]');
+    }
+    function saveWishlists(ws) {
+      localStorage.setItem('tca_wishlists', JSON.stringify(ws));
     }
 
     // ── Tag field helpers (mirrors search.html) ──────────────────────────
@@ -378,7 +406,7 @@
 
       const cs   = getOutfits();
       const coll = cs.find(c => c.id === collectionId);
-      if (!coll) { window.location.href = 'collections.html'; return; }
+      if (!coll) { window.location.href = 'my-outfits.html'; return; }
 
       const cgInput = document.getElementById('cgCollectionName');
       cgInput.value = coll.name || '';
@@ -1263,7 +1291,7 @@
       if (nameVal) { coll.name = nameVal; }
       else if (!coll.name) { coll.name = 'New Outfit'; }
       saveOutfits(cs);
-      window.location.href = 'collection.html?id=' + encodeURIComponent(collectionId);
+      window.location.href = 'outfit.html?id=' + encodeURIComponent(collectionId);
     }
 
     document.getElementById('cgGenerateBtn').addEventListener('click', doGenerate);
@@ -1326,114 +1354,172 @@
     // ── Save modal ────────────────────────────────────────────────────────
     let currentSaveProduct  = null;
     let currentSaveSlotIdx  = null;
-    let pendingCollId       = null;
+    let pendingOutfitIds    = new Set();
+    let pendingWishlistIds  = new Set();
 
-    function renderModalOutfits() {
-      const list = document.getElementById('saveModalList');
-      const outfits = getOutfits();
-      if (outfits.length === 0) {
-        list.innerHTML = '<p style="font-family:\'Manrope-Regular\',sans-serif;font-size:14px;color:var(--muted);padding:6px 0;">No outfits yet.</p>';
+    const CHECK_SVG = `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><polyline points="2,7 5,10.5 12,3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    const PLUS_SVG  = `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><line x1="7" y1="2" x2="7" y2="12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="2" y1="7" x2="12" y2="7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
+
+    function renderSaveList(listId, items, pendingIds, typeLabel) {
+      const list = document.getElementById(listId);
+      const fallback = typeLabel === 'outfit' ? 'New Outfit' : 'New Wishlist';
+      if (items.length === 0) {
+        list.innerHTML = '<p class="save-modal-empty">None saved yet</p>';
         return;
       }
-      list.innerHTML = outfits.map(coll => {
-        const saved   = currentSaveProduct && coll.products.some(p => p.id === currentSaveProduct.id);
-        const nameEsc = coll.name.replace(/&/g, '&amp;').replace(/</g, '&lt;');
-        const thumb   = coll.products[0]
-          ? `<img src="${coll.products[0].image_url}" style="width:52px;height:52px;object-fit:cover;border-radius:6px;flex-shrink:0;" alt="">`
+      list.innerHTML = items.map(item => {
+        const isPending = pendingIds.has(item.id);
+        const nameEsc = (item.name || fallback).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+        const thumb = item.products && item.products[0]
+          ? `<img src="${item.products[0].image_url}" style="width:52px;height:52px;object-fit:cover;border-radius:6px;flex-shrink:0;" alt="">`
           : `<div class="save-outfit-thumb"></div>`;
-        return `<div class="save-outfit-item${saved ? ' is-saved' : ''}" data-coll-id="${coll.id}">
+        return `<div class="save-outfit-item${isPending ? ' is-pending' : ''}" data-item-id="${item.id}" data-item-type="${typeLabel}">
           ${thumb}
           <span class="save-outfit-name">${nameEsc}</span>
-          ${saved
-            ? `<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><polyline points="2,7 5,10.5 12,3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`
-            : `<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><line x1="7" y1="2" x2="7" y2="12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="2" y1="7" x2="12" y2="7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`
-          }        </div>`;
+          ${isPending ? CHECK_SVG : PLUS_SVG}
+        </div>`;
       }).join('');
+    }
+
+    function renderModalOutfits()   { renderSaveList('listOutfit',   getOutfits(),   pendingOutfitIds,   'outfit');   }
+    function renderModalWishlists() { renderSaveList('listWishlist',  getWishlists(), pendingWishlistIds, 'wishlist'); }
+
+    function switchSaveTab(tabName) {
+      document.querySelectorAll('.save-tab').forEach(t =>
+        t.classList.toggle('is-active', t.dataset.tab === tabName));
+      document.querySelectorAll('.save-tab-panel').forEach(p =>
+        p.classList.toggle('is-active', p.dataset.panel === tabName));
+      document.querySelector('.save-tab-indicator').style.transform =
+        tabName === 'wishlist' ? 'translateX(100%)' : 'translateX(0%)';
     }
 
     function openSaveModal(product, slotIdx) {
       currentSaveProduct = product || null;
       currentSaveSlotIdx = slotIdx != null ? slotIdx : null;
+      pendingOutfitIds.clear();
+      pendingWishlistIds.clear();
+      if (product) {
+        getOutfits().forEach(o => {
+          if (o.products.some(p => p.id === product.id)) pendingOutfitIds.add(o.id);
+        });
+        getWishlists().forEach(wl => {
+          if (wl.products.some(p => p.id === product.id)) pendingWishlistIds.add(wl.id);
+        });
+      }
+      document.getElementById('saveOutfitInput').value = '';
+      document.getElementById('saveWishlistInput').value = '';
       renderModalOutfits();
+      renderModalWishlists();
+      switchSaveTab('outfit');
       document.getElementById('saveModal').classList.add('is-open');
-      document.getElementById('saveModalInput').focus();
     }
 
     function closeSaveModal() {
-      const modal = document.getElementById('saveModal');
-      modal.classList.remove('is-open', 'is-name-mode');
-      document.querySelector('#saveModal .save-modal-title').textContent = 'Save to outfit';
-      document.getElementById('saveModalList').style.display = '';
-      document.getElementById('saveModalInput').placeholder = 'New outfit name';
-      document.getElementById('saveModalActions').style.display = 'none';
-      pendingCollId = null;
+      document.getElementById('saveModal').classList.remove('is-open');
       currentSaveProduct = null;
       currentSaveSlotIdx = null;
+      pendingOutfitIds.clear();
+      pendingWishlistIds.clear();
     }
 
-    document.getElementById('saveModalClose').addEventListener('click', closeSaveModal);
+    document.querySelectorAll('.save-tab').forEach(tab => {
+      tab.addEventListener('click', () => switchSaveTab(tab.dataset.tab));
+    });
+
+    function createAndSave(type) {
+      const inputId = type === 'outfit' ? 'saveOutfitInput' : 'saveWishlistInput';
+      const input   = document.getElementById(inputId);
+      const name    = input.value.trim();
+      if (!name) { input.focus(); return; }
+      const newId   = Date.now().toString(36) + Math.random().toString(36).slice(2);
+      const newItem = { id: newId, name, products: currentSaveProduct ? [currentSaveProduct] : [] };
+      if (type === 'outfit') {
+        const outfits = getOutfits();
+        outfits.unshift(newItem);
+        saveOutfits(outfits);
+        if (currentSaveProduct) pendingOutfitIds.add(newId);
+        renderModalOutfits();
+      } else {
+        const wishlists = getWishlists();
+        wishlists.unshift(newItem);
+        saveWishlists(wishlists);
+        if (currentSaveProduct) pendingWishlistIds.add(newId);
+        renderModalWishlists();
+      }
+      input.value = '';
+    }
+
+    document.getElementById('saveOutfitAddBtn').addEventListener('click', () => createAndSave('outfit'));
+    document.getElementById('saveWishlistAddBtn').addEventListener('click', () => createAndSave('wishlist'));
+
+    document.getElementById('saveOutfitInput').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); createAndSave('outfit'); }
+    });
+    document.getElementById('saveWishlistInput').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); createAndSave('wishlist'); }
+    });
+
     document.getElementById('saveModal').addEventListener('click', function (e) {
-      if (e.target === this) closeSaveModal();
-    });
-
-    document.getElementById('saveModalList').addEventListener('click', function (e) {
+      if (e.target === this) { closeSaveModal(); return; }
       const item = e.target.closest('.save-outfit-item');
-      if (!item || !currentSaveProduct) return;
-      const collId = item.dataset.collId;
-      pendingCollId = (pendingCollId === collId) ? null : collId;
-      document.querySelectorAll('.save-outfit-item').forEach(function (el) {
-        el.classList.toggle('is-pending', el.dataset.collId === pendingCollId);
-      });
-      document.getElementById('saveModalActions').style.display = pendingCollId ? '' : 'none';
+      if (!item) return;
+      e.stopPropagation();
+      const type = item.dataset.itemType;
+      const id   = item.dataset.itemId;
+      if (type === 'outfit') {
+        if (pendingOutfitIds.has(id)) pendingOutfitIds.delete(id);
+        else pendingOutfitIds.add(id);
+        renderModalOutfits();
+      } else if (type === 'wishlist') {
+        if (pendingWishlistIds.has(id)) pendingWishlistIds.delete(id);
+        else pendingWishlistIds.add(id);
+        renderModalWishlists();
+      }
     });
 
-    document.getElementById('saveModalConfirmBtn').addEventListener('click', function () {
-      if (!pendingCollId || !currentSaveProduct) { closeSaveModal(); return; }
+    document.getElementById('saveModalCancel').addEventListener('click', closeSaveModal);
+
+    document.getElementById('saveModalSave').addEventListener('click', function () {
+      const product = currentSaveProduct;
+      if (!product) { closeSaveModal(); return; }
+
       const outfits = getOutfits();
-      const coll = outfits.find(c => c.id === pendingCollId);
-      if (coll) {
-        const idx = coll.products.findIndex(p => p.id === currentSaveProduct.id);
-        if (idx >= 0) {
-          coll.products.splice(idx, 1);
-          if (coll.id === collectionId && currentSaveSlotIdx !== null && currentSaveSlotIdx !== 0) {
-            savedSlots[currentSaveSlotIdx] = false;
-            const card = document.querySelector(`#cgProductsGrid [data-slot-idx="${currentSaveSlotIdx}"]`);
-            if (card) card.classList.remove('is-saved');
-          }
-        } else {
-          coll.products.push(currentSaveProduct);
-          if (coll.id === collectionId && currentSaveSlotIdx !== null) {
+      let outfitDirty = false;
+      for (const o of outfits) {
+        const has  = o.products.some(p => p.id === product.id);
+        const want = pendingOutfitIds.has(o.id);
+        if (want && !has) {
+          o.products.push(product);
+          outfitDirty = true;
+          if (o.id === collectionId && currentSaveSlotIdx !== null) {
             savedSlots[currentSaveSlotIdx] = true;
             const card = document.querySelector(`#cgProductsGrid [data-slot-idx="${currentSaveSlotIdx}"]`);
             if (card) card.classList.add('is-saved');
           }
         }
-        saveOutfits(outfits);
+        if (!want && has) {
+          o.products = o.products.filter(p => p.id !== product.id);
+          outfitDirty = true;
+          if (o.id === collectionId && currentSaveSlotIdx !== null) {
+            savedSlots[currentSaveSlotIdx] = false;
+            const card = document.querySelector(`#cgProductsGrid [data-slot-idx="${currentSaveSlotIdx}"]`);
+            if (card) card.classList.remove('is-saved');
+          }
+        }
       }
+      if (outfitDirty) saveOutfits(outfits);
+
+      const wishlists = getWishlists();
+      let wlDirty = false;
+      for (const wl of wishlists) {
+        const has  = wl.products.some(p => p.id === product.id);
+        const want = pendingWishlistIds.has(wl.id);
+        if (want && !has)  { wl.products.push(product); wlDirty = true; }
+        if (!want && has)  { wl.products = wl.products.filter(p => p.id !== product.id); wlDirty = true; }
+      }
+      if (wlDirty) saveWishlists(wishlists);
+
       closeSaveModal();
-    });
-
-    document.getElementById('saveModalCancelBtn').addEventListener('click', closeSaveModal);
-
-    document.getElementById('saveModalAddBtn').addEventListener('click', function () {
-      const input = document.getElementById('saveModalInput');
-      const name  = input.value.trim();
-      if (!name) return;
-
-      const outfits = getOutfits();
-      const newColl = {
-        id:       Date.now().toString(36) + Math.random().toString(36).slice(2),
-        name,
-        products: currentSaveProduct ? [currentSaveProduct] : [],
-      };
-      outfits.push(newColl);
-      saveOutfits(outfits);
-      input.value = '';
-      renderModalOutfits();
-    });
-
-    document.getElementById('saveModalInput').addEventListener('keydown', function (e) {
-      if (e.key === 'Enter') document.getElementById('saveModalAddBtn').click();
     });
 
     // ── Drag-to-reorder (top-half slots) ────────────────────────────────

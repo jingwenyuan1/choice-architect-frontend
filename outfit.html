@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -19,8 +19,8 @@
           </svg>
         </button>
         <div class="avatar-dropdown" id="avatarDropdown">
-          <a href="collections.html" class="avatar-dropdown-item">My Outfits</a>
-          <a href="wishlist.html" class="avatar-dropdown-item">My Wishlist</a>
+          <a href="my-outfits.html" class="avatar-dropdown-item">My Outfits</a>
+          <a href="my-wishlists.html" class="avatar-dropdown-item">My Wishlists</a>
           <a href="purchases.html" class="avatar-dropdown-item">My Purchases</a>
         </div>
       </div>
@@ -89,7 +89,7 @@
   <!-- ── Save modal ────────────────────────────── -->
   <div class="save-modal-overlay" id="saveModal" role="dialog" aria-modal="true">
     <div class="save-modal-box">
-      <h2 class="save-modal-title">Save.</h2>
+      <h2 class="save-modal-title">Save</h2>
 
       <div class="save-tabs" id="saveTabs">
         <button class="save-tab is-active" data-tab="outfit">Outfit</button>
@@ -125,7 +125,7 @@
 
       <div class="save-modal-actions">
         <button class="save-modal-cancel-btn" id="saveModalCancel">Cancel</button>
-        <button class="save-modal-confirm-btn" id="saveModalSave">Save changes</button>
+        <button class="save-modal-confirm-btn" id="saveModalSave">Save</button>
       </div>
     </div>
   </div>
@@ -166,7 +166,7 @@
         document.title = 'New Outfit — The Choice Architect';
       }
       document.getElementById('openInGeneratorBtn').href =
-        'collection-generator.html?collection=' + encodeURIComponent(collectionId);
+        'outfit-generator.html?collection=' + encodeURIComponent(collectionId);
     }
 
     document.getElementById('openInGeneratorBtn').addEventListener('click', function () {
@@ -180,10 +180,6 @@
     function buildCardHTML(product) {
       const imgSrc    = product.image_url;
       const nameEsc   = product.name.replace(/&/g, '&amp;').replace(/</g, '&lt;');
-      const rawColor  = product.color;
-      const colorText = (rawColor && rawColor !== 'other')
-        ? 'Color: ' + rawColor.charAt(0).toUpperCase() + rawColor.slice(1)
-        : 'Color: Multicolor';
       const priceText = product.price != null
         ? '$' + Number(product.price).toFixed(2)
         : '$Price';
@@ -212,9 +208,6 @@
             <div class="product-price-rating">
               <span>${priceText}</span>
               <span class="product-rating">${STAR_SVG} 5.0</span>
-            </div>
-            <div class="product-color-row">
-              <span class="product-detail color-label">${colorText}</span>
             </div>
           </div>
           <div class="card-footer">
@@ -322,7 +315,7 @@
       const list = document.getElementById(listId);
       const fallback = typeLabel === 'outfit' ? 'New Outfit' : 'New Wishlist';
       if (items.length === 0) {
-        list.innerHTML = '<p class="save-modal-empty">None saved yet.</p>';
+        list.innerHTML = '<p class="save-modal-empty">None saved yet</p>';
         return;
       }
       list.innerHTML = items.map(item => {
@@ -382,11 +375,37 @@
       tab.addEventListener('click', () => switchSaveTab(tab.dataset.tab));
     });
 
-    document.getElementById('saveOutfitAddBtn').addEventListener('click', function () {
-      document.getElementById('saveOutfitInput').focus();
+    function createAndSave(type) {
+      const inputId = type === 'outfit' ? 'saveOutfitInput' : 'saveWishlistInput';
+      const input   = document.getElementById(inputId);
+      const name    = input.value.trim();
+      if (!name) { input.focus(); return; }
+      const newId   = Date.now().toString(36) + Math.random().toString(36).slice(2);
+      const newItem = { id: newId, name, products: currentSaveProduct ? [currentSaveProduct] : [] };
+      if (type === 'outfit') {
+        const outfits = getOutfits();
+        outfits.unshift(newItem);
+        saveOutfits(outfits);
+        if (currentSaveProduct) pendingOutfitIds.add(newId);
+        renderModalOutfits();
+      } else {
+        const wishlists = getWishlists();
+        wishlists.unshift(newItem);
+        saveWishlists(wishlists);
+        if (currentSaveProduct) pendingWishlistIds.add(newId);
+        renderModalWishlists();
+      }
+      input.value = '';
+    }
+
+    document.getElementById('saveOutfitAddBtn').addEventListener('click', () => createAndSave('outfit'));
+    document.getElementById('saveWishlistAddBtn').addEventListener('click', () => createAndSave('wishlist'));
+
+    document.getElementById('saveOutfitInput').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); createAndSave('outfit'); }
     });
-    document.getElementById('saveWishlistAddBtn').addEventListener('click', function () {
-      document.getElementById('saveWishlistInput').focus();
+    document.getElementById('saveWishlistInput').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); createAndSave('wishlist'); }
     });
 
     document.getElementById('saveModal').addEventListener('click', function (e) {
@@ -538,7 +557,7 @@
     document.getElementById('deleteCollConfirmBtn').addEventListener('click', function () {
       const cs = getOutfits().filter(c => c.id !== collectionId);
       saveOutfits(cs);
-      window.location.href = 'collections.html';
+      window.location.href = 'my-outfits.html';
     });
   </script>
 

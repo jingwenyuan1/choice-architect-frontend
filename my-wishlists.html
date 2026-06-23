@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>My Outfits — The Choice Architect</title>
+  <title>My Wishlists — The Choice Architect</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -19,8 +19,8 @@
           </svg>
         </button>
         <div class="avatar-dropdown" id="avatarDropdown">
-          <a href="collections.html" class="avatar-dropdown-item">My Outfits</a>
-          <a href="wishlist.html" class="avatar-dropdown-item">My Wishlist</a>
+          <a href="my-outfits.html" class="avatar-dropdown-item">My Outfits</a>
+          <a href="my-wishlists.html" class="avatar-dropdown-item">My Wishlists</a>
           <a href="purchases.html" class="avatar-dropdown-item">My Purchases</a>
         </div>
       </div>
@@ -28,20 +28,20 @@
   </header>
 
   <main class="outfits-main">
-    <h1 class="outfits-heading">My Outfits</h1>
-    <div class="outfits-grid" id="outfitsGrid"></div>
-    <p class="outfits-empty" id="outfitsEmpty" style="display:none;">
-      No outfits yet. Save products from the generator to build your first outfit.
+    <h1 class="outfits-heading">My Wishlists</h1>
+    <div class="outfits-grid" id="wishlistGrid"></div>
+    <p class="outfits-empty" id="wishlistEmpty" style="display:none;">
+      No wishlists yet. Save products to create your first wishlist.
     </p>
   </main>
 
   <script>
-    function getOutfits() {
-      return JSON.parse(localStorage.getItem('tca_outfits') || '[]');
+    function getWishlists() {
+      return JSON.parse(localStorage.getItem('tca_wishlists') || '[]');
     }
 
     function buildPreviewImgs(products) {
-      const items = products.slice(0, 3);
+      const items = (products || []).slice(0, 3);
       const count = items.length;
       if (count === 0) return '';
       const pct = count === 1 ? 50 : count === 2 ? 50 : 33.334;
@@ -51,23 +51,27 @@
     }
 
     function render() {
-      const grid       = document.getElementById('outfitsGrid');
-      const empty      = document.getElementById('outfitsEmpty');
-      const outfits = getOutfits();
+      const grid       = document.getElementById('wishlistGrid');
+      const empty      = document.getElementById('wishlistEmpty');
+      const wishlists  = getWishlists();
 
-      if (outfits.length === 0) {
-        grid.innerHTML       = '';
-        empty.style.display  = 'block';
+      if (wishlists.length === 0) {
+        grid.innerHTML      = '';
+        empty.style.display = 'block';
         return;
       }
 
       empty.style.display = 'none';
-      grid.innerHTML = outfits.map(coll => {
-        const nameEsc = coll.name.replace(/&/g, '&amp;').replace(/</g, '&lt;');
-        const preview = buildPreviewImgs(coll.products);
-        return `<a href="collection.html?id=${encodeURIComponent(coll.id)}" class="outfit-card">
+      grid.innerHTML = wishlists.map(wl => {
+        const hasName  = !!(wl.name && wl.name.trim());
+        const nameEsc  = hasName
+          ? wl.name.replace(/&/g, '&amp;').replace(/</g, '&lt;')
+          : 'New Wishlist';
+        const nameClass = hasName ? 'outfit-card-name' : 'outfit-card-name is-untitled';
+        const preview  = buildPreviewImgs(wl.products);
+        return `<a href="wishlist.html?id=${encodeURIComponent(wl.id)}" class="outfit-card">
           <div class="outfit-preview">${preview}</div>
-          <span class="outfit-card-name">${nameEsc}</span>
+          <span class="${nameClass}">${nameEsc}</span>
         </a>`;
       }).join('');
     }

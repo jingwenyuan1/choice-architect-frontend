@@ -1617,6 +1617,40 @@ body {
   opacity: 0.35;
 }
 
+/* ── Style / attribute search in generator ─────────── */
+.attr-search-section {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.attr-search-label {
+  font-family: 'Manrope-Regular', sans-serif;
+  font-size: 13px;
+  color: var(--dark-mid);
+  white-space: nowrap;
+}
+
+.attr-search-input {
+  font-family: 'Manrope-Regular', sans-serif;
+  font-size: 13px;
+  color: var(--dark);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--dark-mid);
+  outline: none;
+  padding: 4px 0;
+  width: 160px;
+}
+
+.attr-search-input::placeholder {
+  color: var(--muted);
+}
+
+.attr-search-input:focus {
+  border-bottom-color: var(--dark);
+}
+
 /* ── Wishlist detail — wrapping product grid ────────── */
 .wl-products-wrap {
   display: flex;
@@ -1837,12 +1871,31 @@ body {
   align-items: center;
 }
 
-.edit-name-container:hover .edit-name-pencil {
+.edit-name-container:hover .edit-name-pencil,
+.wl-title-container:hover .wl-rename-pencil {
   opacity: 0.55;
 }
 
-.edit-name-pencil:hover {
+.edit-name-pencil:hover,
+.wl-rename-pencil:hover {
   opacity: 1 !important;
+}
+
+.wl-rename-pencil {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--dark-mid);
+  padding: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.wl-title-container .outfit-detail-heading {
+  cursor: text;
 }
 
 .edit-name-input {
