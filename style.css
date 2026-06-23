@@ -1299,7 +1299,7 @@ body {
   font-weight: normal;
   letter-spacing: 0;
   color: var(--dark);
-  margin-bottom: 20px;
+  margin-bottom: 10px;
   line-height: 1.2;
   text-align: center;
 }
@@ -1321,7 +1321,8 @@ body {
   font-size: 15px;
   letter-spacing: 0;
   color: var(--dark);
-  padding: 6px 16px;
+  padding: 0 16px;
+  height: 60px;
   outline: none;
 }
 
@@ -1426,7 +1427,7 @@ body {
   border: none;
   border-radius: 50px;
   font-family: 'Manrope-Regular', sans-serif;
-  font-size: 14px;
+  font-size: 15px;
   color: var(--dark);
   cursor: pointer;
   transition: opacity 0.15s;
@@ -1443,7 +1444,7 @@ body {
   border: none;
   border-radius: 50px;
   font-family: 'Manrope-Regular', sans-serif;
-  font-size: 14px;
+  font-size: 15px;
   color: var(--cream);
   cursor: pointer;
   transition: opacity 0.15s;
