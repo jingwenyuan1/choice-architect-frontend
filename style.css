@@ -1313,14 +1313,14 @@ body {
 
 .save-modal-input {
   flex: 1;
-  border: none;
-  border-bottom: 1px solid var(--muted);
-  background: transparent;
+  border: 1px solid rgba(110, 101, 88, 0.35);
+  border-radius: 51px;
+  background: #fffaf5;
   font-family: 'Manrope-Regular', sans-serif;
   font-size: 15px;
   letter-spacing: 0;
   color: var(--dark);
-  padding: 6px 0;
+  padding: 6px 16px;
   outline: none;
 }
 
@@ -1413,6 +1413,7 @@ body {
 .save-modal-actions {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 10px;
   margin-top: 20px;
 }
@@ -1435,7 +1436,7 @@ body {
 }
 
 .save-modal-confirm-btn {
-  flex: 1.4;
+  flex: 1;
   height: 44px;
   background: var(--dark);
   border: none;
@@ -1499,7 +1500,7 @@ body {
 
 .save-modal-empty {
   font-family: 'Manrope-Regular', sans-serif;
-  font-size: 14px;
+  font-size: 15px;
   color: var(--muted);
   padding: 8px 0;
 }
