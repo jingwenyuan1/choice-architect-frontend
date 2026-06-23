@@ -1299,7 +1299,7 @@ body {
   font-weight: normal;
   letter-spacing: 0;
   color: var(--dark);
-  margin-bottom: 10px;
+  margin-bottom: 4px;
   line-height: 1.2;
   text-align: center;
 }
@@ -1322,7 +1322,7 @@ body {
   letter-spacing: 0;
   color: var(--dark);
   padding: 0 16px;
-  height: 60px;
+  height: 44px;
   outline: none;
 }
 
@@ -1334,8 +1334,8 @@ body {
 }
 
 .save-modal-add-btn {
-  width: 30px;
-  height: 30px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   border: none;
   background: #6e6558;
