@@ -98,10 +98,6 @@
           </button>
         </div>
       </div>
-      <div class="attr-search-section">
-        <span class="attr-search-label">Search another attribute</span>
-        <input type="text" class="attr-search-input" id="exploreAttrInput" placeholder="Search" autocomplete="off">
-      </div>
     </div>
 
     <section class="products-section">
@@ -404,6 +400,22 @@
       document.getElementById('cgProductsGrid').style.opacity = '1';
     }
 
+    async function fetchMissingTagsForSlots() {
+      const missing = slots.filter(s => s.type === 'locked' && s.product && !s.product.tags);
+      if (!missing.length) return;
+      try {
+        const pids = missing.map(s => s.product.id).join(',');
+        const resp = await fetch(`${API_BASE}/tags?pids=${encodeURIComponent(pids)}`);
+        const tagMap = await resp.json();
+        let updated = false;
+        missing.forEach(s => {
+          const t = tagMap[s.product.id];
+          if (t && Object.keys(t).length > 0) { s.product.tags = t; updated = true; }
+        });
+        if (updated) renderAll();
+      } catch (err) { console.error('fetchMissingTagsForSlots:', err); }
+    }
+
     (function init() {
       const params = new URLSearchParams(window.location.search);
       collectionId  = params.get('collection') || '';
@@ -420,6 +432,7 @@
       loadFromPreloadOrCollection(coll);
       try { renderAll(); } catch (err) { console.error('renderAll error:', err); }
       requestAnimationFrame(() => requestAnimationFrame(showGrid));
+      fetchMissingTagsForSlots();
     })();
 
     // Re-initialize when restored from bfcache so stale generator state is never shown
@@ -431,6 +444,7 @@
       loadFromPreloadOrCollection(coll);
       try { renderAll(); } catch (err) { console.error('renderAll error:', err); }
       showGrid();
+      fetchMissingTagsForSlots();
     });
 
     function newPickerSlot() {
@@ -717,6 +731,8 @@
       const pinnedIds = new Set(
         slots.filter(s => s.locked && s.product).map(s => s.product.id)
       );
+      // Also pin products currently shown in picker slots so generate always picks something new
+      toFill.forEach(({ slot }) => { if (slot.product) pinnedIds.add(slot.product.id); });
 
       const styleQuery = document.getElementById('cgStyleInput').value.trim();
 
@@ -743,8 +759,7 @@
           }
         }));
       } finally {
-        // Always re-render and unblock, even if a fetch threw
-        renderAll(changingIndices);
+        try { renderAll(changingIndices); } catch (e) { console.error('renderAll failed:', e); }
         setTimeout(() => { isFading = false; }, 700);
       }
     }

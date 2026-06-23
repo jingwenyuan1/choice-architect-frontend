@@ -738,13 +738,18 @@ body {
   left: 9px;
 }
 
-/* Lock buttons inside overlay: match the persistent-lock's exact coordinates */
+/* Lock buttons inside overlay: match the persistent-lock's exact size and coordinates */
 .card-overlay .cg-lock-btn:not(.persistent-lock),
 .card-overlay .cg-explore-lock-btn:not(.persistent-lock),
 .card-overlay .slot-lock-btn:not(.persistent-lock) {
   position: absolute;
   top: 9px;
   right: 9px;
+  width: 27px;
+  height: 27px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   margin-right: 0;
 }
 
@@ -805,7 +810,7 @@ body {
   top: 30%;
   left: 15px;
   right: 10px;
-  bottom: 60px;
+  bottom: 85px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -1034,7 +1039,6 @@ body {
 }
 
 .nav-arrow-btn:disabled {
-  opacity: 0.25;
   cursor: default;
   pointer-events: none;
 }
