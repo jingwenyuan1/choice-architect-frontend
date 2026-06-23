@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Outfit — The Choice Architect</title>
+  <title>Wishlist — The Choice Architect</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -29,16 +29,9 @@
 
   <div class="outfit-detail-header">
     <div class="edit-name-container">
-      <h1 class="outfit-detail-heading" id="collectionName"></h1>
+      <input type="text" class="cg-name-input" id="wishlistTitle" placeholder="New Wishlist" autocomplete="off">
     </div>
     <div class="coll-header-actions">
-      <a id="openInGeneratorBtn" href="#" class="open-in-generator-btn">
-        Open in generator
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <line x1="5" y1="12" x2="19" y2="12"/>
-          <polyline points="12 5 19 12 12 19"/>
-        </svg>
-      </a>
       <div class="kebab-wrap" id="kebabWrap">
         <button class="kebab-btn" id="kebabBtn" aria-label="More options">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="#fffaf5" aria-hidden="true">
@@ -48,22 +41,19 @@
           </svg>
         </button>
         <div class="kebab-dropdown" id="kebabDropdown">
-          <button class="kebab-item" id="renameCollBtn">Rename outfit</button>
-          <button class="kebab-item kebab-item-danger" id="deleteCollBtn">Delete outfit</button>
+          <button class="kebab-item kebab-item-danger" id="deleteWlBtn">Delete wishlist</button>
         </div>
       </div>
     </div>
   </div>
 
   <section class="products-section">
-    <div class="products-scroll-wrapper">
-      <div class="products-track" id="productsGrid">
-        <p class="no-results" id="noResults" style="display:none;">No products saved.</p>
-      </div>
+    <div class="wl-products-wrap" id="productsWrap">
+      <p class="no-results" id="noResults" style="display:none;">No products saved.</p>
     </div>
   </section>
 
-  <!-- ── Confirm remove product modal ────────────────── -->
+  <!-- ── Confirm remove product modal ──────────────── -->
   <div class="confirm-modal-overlay" id="confirmModal" role="dialog" aria-modal="true">
     <div class="confirm-modal-box">
       <p class="confirm-modal-title">Are you sure?</p>
@@ -75,18 +65,18 @@
     </div>
   </div>
 
-  <!-- ── Delete outfit modal ─────────────────────── -->
-  <div class="confirm-modal-overlay" id="deleteCollModal" role="dialog" aria-modal="true">
+  <!-- ── Delete wishlist modal ──────────────────────── -->
+  <div class="confirm-modal-overlay" id="deleteWlModal" role="dialog" aria-modal="true">
     <div class="confirm-modal-box">
       <p class="confirm-modal-title">Are you sure?</p>
       <div class="confirm-modal-actions">
-        <button class="confirm-modal-cancel" id="deleteCollCancelBtn">Cancel</button>
-        <button class="confirm-modal-confirm" id="deleteCollConfirmBtn">Delete</button>
+        <button class="confirm-modal-cancel" id="deleteWlCancelBtn">Cancel</button>
+        <button class="confirm-modal-confirm" id="deleteWlConfirmBtn">Delete</button>
       </div>
     </div>
   </div>
 
-  <!-- ── Save modal ────────────────────────────── -->
+  <!-- ── Save modal ────────────────────────────────── -->
   <div class="save-modal-overlay" id="saveModal" role="dialog" aria-modal="true">
     <div class="save-modal-box">
       <h2 class="save-modal-title">Save.</h2>
@@ -135,7 +125,13 @@
     const STAR_SVG = `<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
     const SAVE_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>`;
 
-    // ── Outfits helpers ────────────────────────────────────────────
+    // ── Storage helpers ─────────────────────────────────────────────────
+    function getWishlists() {
+      return JSON.parse(localStorage.getItem('tca_wishlists') || '[]');
+    }
+    function saveWishlists(ws) {
+      localStorage.setItem('tca_wishlists', JSON.stringify(ws));
+    }
     function getOutfits() {
       return JSON.parse(localStorage.getItem('tca_outfits') || '[]');
     }
@@ -143,43 +139,41 @@
       localStorage.setItem('tca_outfits', JSON.stringify(cs));
     }
 
-    // ── Load this collection ───────────────────────────────────────────
-    const params       = new URLSearchParams(window.location.search);
-    const collectionId = params.get('id') || '';
-    let   collection   = null;
+    // ── Load this wishlist ──────────────────────────────────────────────
+    const params     = new URLSearchParams(window.location.search);
+    const wishlistId = params.get('id') || '';
+    let   wishlist   = null;
 
-    function loadCollection() {
-      const cs = getOutfits();
-      collection = cs.find(c => c.id === collectionId) || null;
+    function loadWishlist() {
+      wishlist = getWishlists().find(w => w.id === wishlistId) || null;
     }
 
-    loadCollection();
+    loadWishlist();
 
-    if (collection) {
-      const nameEl = document.getElementById('collectionName');
-      if (collection.name) {
-        nameEl.textContent = collection.name;
-        document.title = collection.name + ' — The Choice Architect';
-      } else {
-        nameEl.textContent = 'New outfit';
-        nameEl.classList.add('is-untitled');
-        document.title = 'New Outfit — The Choice Architect';
-      }
-      document.getElementById('openInGeneratorBtn').href =
-        'collection-generator.html?collection=' + encodeURIComponent(collectionId);
+    if (wishlist) {
+      const titleInput = document.getElementById('wishlistTitle');
+      titleInput.value = wishlist.name || '';
+      document.title   = (wishlist.name || 'New Wishlist') + ' — The Choice Architect';
+    } else {
+      document.title = 'Wishlist — The Choice Architect';
     }
 
-    document.getElementById('openInGeneratorBtn').addEventListener('click', function () {
-      loadCollection();
-      if (collection && collection.products.length > 0) {
-        localStorage.setItem('generatorProducts', JSON.stringify(collection.products));
+    // ── Title auto-save on blur ─────────────────────────────────────────
+    document.getElementById('wishlistTitle').addEventListener('blur', function () {
+      const newName = this.value.trim();
+      const ws      = getWishlists();
+      const wl      = ws.find(w => w.id === wishlistId);
+      if (wl && newName !== wl.name) {
+        wl.name = newName;
+        saveWishlists(ws);
+        document.title = (newName || 'New Wishlist') + ' — The Choice Architect';
       }
     });
 
-    // ── Build one card ─────────────────────────────────────────────────
+    // ── Build one card ──────────────────────────────────────────────────
     function buildCardHTML(product) {
       const imgSrc    = product.image_url;
-      const nameEsc   = product.name.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+      const nameEsc   = (product.name || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
       const rawColor  = product.color;
       const colorText = (rawColor && rawColor !== 'other')
         ? 'Color: ' + rawColor.charAt(0).toUpperCase() + rawColor.slice(1)
@@ -194,7 +188,7 @@
         <img class="product-img" src="${imgSrc}" alt="${nameEsc}" loading="lazy">
         <div class="card-overlay">
           <div class="overlay-top">
-            <button class="close-btn coll-remove-btn" aria-label="Remove from outfit" data-id="${product.id}">
+            <button class="close-btn wl-remove-btn" aria-label="Remove from wishlist" data-id="${product.id}">
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
                 <line x1="1" y1="1" x2="11" y2="11" stroke="#fffaf5" stroke-width="1.5" stroke-linecap="round"/>
                 <line x1="11" y1="1" x2="1" y2="11" stroke="#fffaf5" stroke-width="1.5" stroke-linecap="round"/>
@@ -219,32 +213,32 @@
           </div>
           <div class="card-footer">
             <a href="${href}"${linkAttrs} class="product-webpage-btn">Product Webpage</a>
-            <button class="save-btn" aria-label="Save to outfit" data-id="${product.id}">${SAVE_SVG}</button>
+            <button class="save-btn" aria-label="Save to outfit or wishlist" data-id="${product.id}">${SAVE_SVG}</button>
           </div>
         </div>
       </div>`;
     }
 
-    // ── Render all products ────────────────────────────────────────────
+    // ── Render all products ─────────────────────────────────────────────
     function renderProducts() {
-      const grid     = document.getElementById('productsGrid');
+      const wrap     = document.getElementById('productsWrap');
       const noResult = document.getElementById('noResults');
-      grid.querySelectorAll('.product-card').forEach(c => c.remove());
-      if (!collection || collection.products.length === 0) {
+      wrap.querySelectorAll('.product-card').forEach(c => c.remove());
+      if (!wishlist || wishlist.products.length === 0) {
         noResult.style.display = 'block';
         return;
       }
       noResult.style.display = 'none';
-      collection.products.forEach(p => {
+      wishlist.products.forEach(p => {
         const tmp = document.createElement('div');
         tmp.innerHTML = buildCardHTML(p).trim();
-        grid.insertBefore(tmp.firstElementChild, noResult);
+        wrap.insertBefore(tmp.firstElementChild, noResult);
       });
     }
 
     renderProducts();
 
-    // ── Confirm remove product modal ───────────────────────────────────
+    // ── Confirm remove product modal ────────────────────────────────────
     let pendingRemoveId = null;
 
     function openConfirmModal(pid) {
@@ -262,55 +256,31 @@
     });
     document.getElementById('confirmRemoveBtn').addEventListener('click', function () {
       if (!pendingRemoveId) return;
-      const cs  = getOutfits();
-      const col = cs.find(c => c.id === collectionId);
-      if (col) {
-        col.products = col.products.filter(p => p.id !== pendingRemoveId);
-        saveOutfits(cs);
-        loadCollection();
+      const ws = getWishlists();
+      const wl = ws.find(w => w.id === wishlistId);
+      if (wl) {
+        wl.products = wl.products.filter(p => p.id !== pendingRemoveId);
+        saveWishlists(ws);
+        loadWishlist();
         renderProducts();
       }
       closeConfirmModal();
     });
 
-    // ── Product grid click handler ─────────────────────────────────────
-    document.getElementById('productsGrid').addEventListener('click', function (e) {
-      const removeBtn = e.target.closest('.coll-remove-btn');
+    // ── Product grid click handler ──────────────────────────────────────
+    document.getElementById('productsWrap').addEventListener('click', function (e) {
+      const removeBtn = e.target.closest('.wl-remove-btn');
       if (removeBtn) { e.stopPropagation(); openConfirmModal(removeBtn.dataset.id); return; }
       const saveBtn = e.target.closest('.save-btn');
       if (saveBtn) {
         e.stopPropagation();
         const pid  = saveBtn.dataset.id;
-        const prod = collection && collection.products.find(p => p.id === pid);
+        const prod = wishlist && wishlist.products.find(p => p.id === pid);
         openSaveModal(prod || null);
       }
     });
 
-    // ── Click-drag scroll ──────────────────────────────────────────────
-    (function () {
-      var scroller = document.querySelector('.products-scroll-wrapper');
-      var isDown = false, startX, scrollLeft;
-      scroller.addEventListener('mousedown', function (e) {
-        isDown = true; scroller.style.cursor = 'grabbing';
-        startX = e.pageX - scroller.offsetLeft; scrollLeft = scroller.scrollLeft;
-      });
-      document.addEventListener('mouseup', function () { isDown = false; scroller.style.cursor = ''; });
-      scroller.addEventListener('mouseleave', function () { isDown = false; scroller.style.cursor = ''; });
-      scroller.addEventListener('mousemove', function (e) {
-        if (!isDown) return;
-        e.preventDefault();
-        scroller.scrollLeft = scrollLeft - (e.pageX - scroller.offsetLeft - startX) * 1.2;
-      });
-    })();
-
-    // ── Save modal ──────────────────────────────────────
-    function getWishlists() {
-      return JSON.parse(localStorage.getItem('tca_wishlists') || '[]');
-    }
-    function saveWishlists(ws) {
-      localStorage.setItem('tca_wishlists', JSON.stringify(ws));
-    }
-
+    // ── Save modal ──────────────────────────────────────────────────────
     const CHECK_SVG = `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><polyline points="2,7 5,10.5 12,3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
     const PLUS_SVG  = `<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><line x1="7" y1="2" x2="7" y2="12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="2" y1="7" x2="12" y2="7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
 
@@ -339,8 +309,8 @@
       }).join('');
     }
 
-    function renderModalOutfits()   { renderSaveList('listOutfit',   getOutfits(),   pendingOutfitIds,   'outfit');   }
-    function renderModalWishlists() { renderSaveList('listWishlist',  getWishlists(), pendingWishlistIds, 'wishlist'); }
+    function renderModalOutfits()   { renderSaveList('listOutfit',  getOutfits(),   pendingOutfitIds,   'outfit');   }
+    function renderModalWishlists() { renderSaveList('listWishlist', getWishlists(), pendingWishlistIds, 'wishlist'); }
 
     function switchSaveTab(tabName) {
       document.querySelectorAll('.save-tab').forEach(t =>
@@ -431,114 +401,55 @@
 
       const wishlistName = document.getElementById('saveWishlistInput').value.trim();
       if (wishlistName) {
-        const wishlists = getWishlists();
-        wishlists.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2), name: wishlistName, products: [product] });
-        saveWishlists(wishlists);
+        const ws = getWishlists();
+        ws.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2), name: wishlistName, products: [product] });
+        saveWishlists(ws);
       }
-      const wishlists = getWishlists();
+      const ws2 = getWishlists();
       let wlDirty = false;
-      for (const wl of wishlists) {
+      for (const wl of ws2) {
         const has  = wl.products.some(p => p.id === product.id);
         const want = pendingWishlistIds.has(wl.id);
         if (want && !has)  { wl.products.push(product); wlDirty = true; }
         if (!want && has)  { wl.products = wl.products.filter(p => p.id !== product.id); wlDirty = true; }
       }
-      if (wlDirty) saveWishlists(wishlists);
+      if (wlDirty) saveWishlists(ws2);
 
+      // Reload in case this wishlist was modified
+      loadWishlist();
+      renderProducts();
       closeSaveModal();
     });
 
-    // ── Kebab menu ─────────────────────────────────────────────────────
+    // ── Kebab menu ──────────────────────────────────────────────────────
     const kebabBtn      = document.getElementById('kebabBtn');
     const kebabDropdown = document.getElementById('kebabDropdown');
 
-    function openKebab()  { kebabDropdown.classList.add('is-open'); }
-    function closeKebab() { kebabDropdown.classList.remove('is-open'); }
-
     kebabBtn.addEventListener('click', function (e) {
       e.stopPropagation();
-      kebabDropdown.classList.contains('is-open') ? closeKebab() : openKebab();
+      kebabDropdown.classList.toggle('is-open');
     });
     document.addEventListener('click', function (e) {
-      if (!document.getElementById('kebabWrap').contains(e.target)) closeKebab();
+      if (!document.getElementById('kebabWrap').contains(e.target))
+        kebabDropdown.classList.remove('is-open');
     });
 
-    // ── Rename outfit ──────────────────────────────────────────────
-    function measureTextWidth(text, font) {
-      const c = measureTextWidth._c || (measureTextWidth._c = document.createElement('canvas'));
-      const ctx = c.getContext('2d');
-      ctx.font = font;
-      return ctx.measureText(text).width;
-    }
+    // ── Delete wishlist ─────────────────────────────────────────────────
+    function openDeleteModal()  { document.getElementById('deleteWlModal').classList.add('is-open'); }
+    function closeDeleteModal() { document.getElementById('deleteWlModal').classList.remove('is-open'); }
 
-    function startRename() {
-      closeKebab();
-      const nameEl = document.getElementById('collectionName');
-      if (document.querySelector('.edit-name-input')) return;
-      const currentName = nameEl.classList.contains('is-untitled') ? '' : nameEl.textContent.trim();
-      const style       = window.getComputedStyle(nameEl);
-      const font        = style.fontSize + ' ' + style.fontFamily;
-      const MAX_W       = Math.floor(window.innerWidth / 3);
-      const MIN_W       = 120;
-
-      const input = document.createElement('input');
-      input.type      = 'text';
-      input.value     = currentName;
-      input.className = 'edit-name-input';
-
-      function resize() {
-        const w = measureTextWidth(input.value || input.placeholder, font);
-        input.style.width = Math.min(MAX_W, Math.max(MIN_W, Math.ceil(w) + 20)) + 'px';
-      }
-      resize();
-      input.addEventListener('input', resize);
-
-      nameEl.replaceWith(input);
-      input.focus();
-      input.select();
-
-      function commit() {
-        const newName = input.value.trim();
-        const cs      = getOutfits();
-        const coll    = cs.find(c => c.id === collectionId);
-        if (coll && newName !== coll.name) { coll.name = newName; saveOutfits(cs); }
-        if (newName) {
-          nameEl.textContent = newName;
-          nameEl.classList.remove('is-untitled');
-          document.title = newName + ' — The Choice Architect';
-        } else {
-          nameEl.textContent = 'New outfit';
-          nameEl.classList.add('is-untitled');
-          document.title = 'New Outfit — The Choice Architect';
-        }
-        if (input.parentNode) input.replaceWith(nameEl);
-      }
-
-      input.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter')  { e.preventDefault(); commit(); }
-        if (e.key === 'Escape') { if (input.parentNode) input.replaceWith(nameEl); }
-      });
-      input.addEventListener('blur', commit);
-    }
-
-    document.getElementById('renameCollBtn').addEventListener('click', startRename);
-
-    // ── Delete outfit ──────────────────────────────────────────────
-    function openDeleteModal()  { document.getElementById('deleteCollModal').classList.add('is-open'); }
-    function closeDeleteModal() { document.getElementById('deleteCollModal').classList.remove('is-open'); }
-
-    document.getElementById('deleteCollBtn').addEventListener('click', function () {
-      closeKebab();
+    document.getElementById('deleteWlBtn').addEventListener('click', function () {
+      kebabDropdown.classList.remove('is-open');
       openDeleteModal();
     });
-    document.getElementById('deleteCollCancelBtn').addEventListener('click', closeDeleteModal);
-    document.getElementById('deleteCollModal').addEventListener('click', function (e) {
+    document.getElementById('deleteWlCancelBtn').addEventListener('click', closeDeleteModal);
+    document.getElementById('deleteWlModal').addEventListener('click', function (e) {
       if (e.target === this) closeDeleteModal();
     });
-    document.getElementById('deleteCollConfirmBtn').addEventListener('click', function () {
-      const cs = getOutfits().filter(c => c.id !== collectionId);
-      saveOutfits(cs);
-      window.location.href = 'collections.html';
+    document.getElementById('deleteWlConfirmBtn').addEventListener('click', function () {
+      const ws = getWishlists().filter(w => w.id !== wishlistId);
+      saveWishlists(ws);
+      window.location.href = 'wishlist.html';
     });
   </script>
 

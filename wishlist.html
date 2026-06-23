@@ -29,7 +29,55 @@
 
   <main class="outfits-main">
     <h1 class="outfits-heading">My Wishlist</h1>
+    <div class="outfits-grid" id="wishlistGrid"></div>
+    <p class="outfits-empty" id="wishlistEmpty" style="display:none;">
+      No wishlists yet. Save products to create your first wishlist.
+    </p>
   </main>
+
+  <script>
+    function getWishlists() {
+      return JSON.parse(localStorage.getItem('tca_wishlists') || '[]');
+    }
+
+    function buildPreviewImgs(products) {
+      const items = (products || []).slice(0, 3);
+      const count = items.length;
+      if (count === 0) return '';
+      const pct = count === 1 ? 50 : count === 2 ? 50 : 33.334;
+      return items.map(p =>
+        `<img src="${p.image_url}" style="width:${pct}%;height:100%;object-fit:cover;flex-shrink:0;display:block;" alt="">`
+      ).join('');
+    }
+
+    function render() {
+      const grid       = document.getElementById('wishlistGrid');
+      const empty      = document.getElementById('wishlistEmpty');
+      const wishlists  = getWishlists();
+
+      if (wishlists.length === 0) {
+        grid.innerHTML      = '';
+        empty.style.display = 'block';
+        return;
+      }
+
+      empty.style.display = 'none';
+      grid.innerHTML = wishlists.map(wl => {
+        const hasName  = !!(wl.name && wl.name.trim());
+        const nameEsc  = hasName
+          ? wl.name.replace(/&/g, '&amp;').replace(/</g, '&lt;')
+          : 'New Wishlist';
+        const nameClass = hasName ? 'outfit-card-name' : 'outfit-card-name is-untitled';
+        const preview  = buildPreviewImgs(wl.products);
+        return `<a href="wishlist-detail.html?id=${encodeURIComponent(wl.id)}" class="outfit-card">
+          <div class="outfit-preview">${preview}</div>
+          <span class="${nameClass}">${nameEsc}</span>
+        </a>`;
+      }).join('');
+    }
+
+    render();
+  </script>
 
   <script>
     (function () {
