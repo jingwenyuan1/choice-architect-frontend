@@ -115,7 +115,7 @@
             <polyline points="15 18 9 12 15 6"/>
           </svg>
         </button>
-        <button class="nav-arrow-btn" id="exploreNextBtn" aria-label="Roll">
+        <button class="nav-arrow-btn" id="exploreNextBtn" aria-label="Redo" disabled>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="9 18 15 12 9 6"/>
           </svg>
@@ -373,6 +373,7 @@
     let exploreSlotTagLocks    = [{}, {}, {}, {}, {}];
     let exploreNextIndex       = 0;
     let exploreRollHistory     = [];
+    let exploreRedoHistory     = [];
 
     // ── Init ─────────────────────────────────────────────────────────────
     function loadFromPreloadOrCollection(coll) {
@@ -769,6 +770,11 @@
       if (btn) btn.disabled = genRedoHistory.length === 0;
     }
 
+    function syncExploreRedoBtn() {
+      const btn = document.getElementById('exploreNextBtn');
+      if (btn) btn.disabled = exploreRedoHistory.length === 0;
+    }
+
     async function doUndo() {
       if (genHistory.length === 0 || isFading) return;
       isFading = true;
@@ -836,7 +842,9 @@
       exploreSlotLocked    = [true, false, false, false, false];
       exploreSlotTagLocks  = [{}, {}, {}, {}, {}];
       exploreRollHistory   = [];
+      exploreRedoHistory   = [];
       exploreNextIndex     = 0;
+      syncExploreRedoBtn();
       renderExploreSlots();
 
       // Show section
@@ -904,6 +912,8 @@
       exploreSlotTagLocks  = [{}, {}, {}, {}, {}];
       exploreNextIndex     = Math.min(4, exploreFilteredResults.length);
       exploreRollHistory  = [];
+      exploreRedoHistory  = [];
+      syncExploreRedoBtn();
       renderExploreSlots();
     }
 
@@ -916,6 +926,10 @@
       );
       if (slotsToReplace.size === 0) return;
       isExploreFading = true;
+
+      // New roll clears redo history synchronously
+      exploreRedoHistory = [];
+      syncExploreRedoBtn();
 
       const grid = document.getElementById('exploreGrid');
       grid.querySelectorAll('.product-card').forEach(el => {
@@ -999,24 +1013,57 @@
       if (exploreRollHistory.length === 0 || isExploreFading) return;
       isExploreFading = true;
 
-      const unlockedIndices = new Set(
-        exploreSlotProducts.reduce((acc, p, i) => { if (p && !exploreSlotLocked[i]) acc.push(i); return acc; }, [])
-      );
+      // Mutate stacks and update button SYNCHRONOUSLY before any await
+      const snap = exploreRollHistory.pop();
+      exploreRedoHistory.push({
+        exploreSlotProducts:  [...exploreSlotProducts],
+        exploreSlotLocked:    [...exploreSlotLocked],
+        exploreSlotTagLocks:  exploreSlotTagLocks.map(o => ({...o})),
+        exploreNextIndex,
+      });
+      syncExploreRedoBtn();
+
       const grid = document.getElementById('exploreGrid');
       grid.querySelectorAll('.product-card').forEach(el => {
-        if (unlockedIndices.has(parseInt(el.dataset.slot, 10))) {
-          el.style.transition = 'opacity 350ms linear';
-          el.style.opacity    = '0';
-        }
+        el.style.transition = 'opacity 350ms linear';
+        el.style.opacity    = '0';
       });
       await new Promise(r => setTimeout(r, 350));
 
-      const snap = exploreRollHistory.pop();
       exploreSlotProducts  = snap.exploreSlotProducts;
       exploreSlotLocked    = snap.exploreSlotLocked;
       exploreSlotTagLocks  = snap.exploreSlotTagLocks;
       exploreNextIndex     = snap.exploreNextIndex;
-      renderExploreSlots(unlockedIndices);
+      renderExploreSlots();
+      setTimeout(() => { isExploreFading = false; }, 700);
+    }
+
+    async function doExploreRedo() {
+      if (exploreRedoHistory.length === 0 || isExploreFading) return;
+      isExploreFading = true;
+
+      // Mutate stacks and update button SYNCHRONOUSLY before any await
+      const snap = exploreRedoHistory.pop();
+      exploreRollHistory.push({
+        exploreSlotProducts:  [...exploreSlotProducts],
+        exploreSlotLocked:    [...exploreSlotLocked],
+        exploreSlotTagLocks:  exploreSlotTagLocks.map(o => ({...o})),
+        exploreNextIndex,
+      });
+      syncExploreRedoBtn();
+
+      const grid = document.getElementById('exploreGrid');
+      grid.querySelectorAll('.product-card').forEach(el => {
+        el.style.transition = 'opacity 350ms linear';
+        el.style.opacity    = '0';
+      });
+      await new Promise(r => setTimeout(r, 350));
+
+      exploreSlotProducts  = snap.exploreSlotProducts;
+      exploreSlotLocked    = snap.exploreSlotLocked;
+      exploreSlotTagLocks  = snap.exploreSlotTagLocks;
+      exploreNextIndex     = snap.exploreNextIndex;
+      renderExploreSlots();
       setTimeout(() => { isExploreFading = false; }, 700);
     }
 
@@ -1345,7 +1392,7 @@
     document.getElementById('saveChangesBtn').addEventListener('click', saveChanges);
 
     document.getElementById('exploreRollBtn').addEventListener('click', doExploreRoll);
-    document.getElementById('exploreNextBtn').addEventListener('click', doExploreRoll);
+    document.getElementById('exploreNextBtn').addEventListener('click', doExploreRedo);
     document.getElementById('explorePrevBtn').addEventListener('click', doExploreUndo);
     document.getElementById('explorePriceSearchBtn').addEventListener('click', applyExplorePriceFilter);
 
