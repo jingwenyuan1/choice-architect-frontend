@@ -162,7 +162,7 @@
       } else {
         nameEl.textContent = 'New outfit';
         nameEl.classList.add('is-untitled');
-        document.title = 'New Outfit — The Choice Architect';
+        document.title = 'New outfit — The Choice Architect';
       }
       document.getElementById('openInGeneratorBtn').href =
         'outfit-generator.html?collection=' + encodeURIComponent(collectionId);
@@ -358,7 +358,7 @@
 
     function renderSaveList(listId, items, pendingIds, typeLabel) {
       const list = document.getElementById(listId);
-      const fallback = typeLabel === 'outfit' ? 'New Outfit' : 'New Wishlist';
+      const fallback = typeLabel === 'outfit' ? 'New outfit' : 'New Wishlist';
       if (items.length === 0) {
         list.innerHTML = '<p class="save-modal-empty">None saved yet</p>';
         return;
@@ -573,7 +573,7 @@
         } else {
           nameEl.textContent = 'New outfit';
           nameEl.classList.add('is-untitled');
-          document.title = 'New Outfit — The Choice Architect';
+          document.title = 'New outfit — The Choice Architect';
         }
         if (input.parentNode) input.replaceWith(nameEl);
       }

@@ -788,7 +788,7 @@
 
     function renderSaveList(listId, items, pendingIds, typeLabel) {
       const list = document.getElementById(listId);
-      const fallback = typeLabel === 'outfit' ? 'New Outfit' : 'New Wishlist';
+      const fallback = typeLabel === 'outfit' ? 'New outfit' : 'New Wishlist';
       if (items.length === 0) {
         list.innerHTML = '<p class="save-modal-empty">None saved yet</p>';
         return;
