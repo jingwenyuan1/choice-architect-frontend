@@ -182,7 +182,8 @@
   </div>
 
   <script>
-    const API_BASE   = 'https://choice-architect-server-production.up.railway.app';
+    const API_BASE      = 'https://choice-architect-server-production.up.railway.app';
+    const SIMILARITY_K  = 200;
     const CATEGORIES = ['Tops', 'Bottoms', 'Outerwear', 'Shoes', 'Jewelry', 'Bags', 'Other'];
 
     const CATEGORY_QUERY = {
@@ -361,6 +362,7 @@
     let savedSlots    = [];   // parallel to slots: true = saved to current collection
     let slotTagLocks  = [];   // per-slot {field: boolean} for attribute locks
     let genHistory    = [];
+    let genRedoHistory = [];
     let isFading      = false;
     let isExploreFading = false;
     let hasGenerated  = false;
@@ -393,6 +395,7 @@
       savedSlots   = slots.map((_, i) => i === 0);
       slotTagLocks = slots.map(() => ({}));
       genHistory   = [];
+      genRedoHistory = [];
       hasGenerated = false;
     }
 
@@ -715,6 +718,7 @@
         slots.map(s => ({ ...s, resultsCache: null }))
       )));
       if (genHistory.length > 50) genHistory.shift();
+      genRedoHistory = [];
 
       const pinnedIds = new Set(
         slots.filter(s => s.locked && s.product).map(s => s.product.id)
@@ -761,7 +765,32 @@
       fadeOutChanging(changingIndices);
       await new Promise(r => setTimeout(r, 350));
 
+      genRedoHistory.push(JSON.parse(JSON.stringify(slots.map(s => ({ ...s, resultsCache: null })))));
       const snap = genHistory.pop();
+      snap.forEach((s, i) => {
+        if (slots[i]) {
+          slots[i].category  = s.category;
+          slots[i].product   = s.product;
+          slots[i].locked    = s.locked;
+          slots[i].resultIdx = s.resultIdx;
+        }
+      });
+      renderAll(changingIndices);
+      setTimeout(() => { isFading = false; }, 700);
+    }
+
+    async function doRedo() {
+      if (genRedoHistory.length === 0 || isFading) return;
+      isFading = true;
+
+      const changingIndices = new Set(
+        slots.reduce((acc, s, i) => { if (s.type !== 'locked') acc.push(i); return acc; }, [])
+      );
+      fadeOutChanging(changingIndices);
+      await new Promise(r => setTimeout(r, 350));
+
+      genHistory.push(JSON.parse(JSON.stringify(slots.map(s => ({ ...s, resultsCache: null })))));
+      const snap = genRedoHistory.pop();
       snap.forEach((s, i) => {
         if (slots[i]) {
           slots[i].category  = s.category;
@@ -1295,7 +1324,7 @@
     }
 
     document.getElementById('cgGenerateBtn').addEventListener('click', doGenerate);
-    document.getElementById('cgNextBtn').addEventListener('click', doGenerate);
+    document.getElementById('cgNextBtn').addEventListener('click', doRedo);
     document.getElementById('cgPrevBtn').addEventListener('click', doUndo);
     document.getElementById('saveChangesBtn').addEventListener('click', saveChanges);
 
