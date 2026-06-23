@@ -112,7 +112,7 @@
           <polyline points="15 18 9 12 15 6"/>
         </svg>
       </button>
-      <button class="nav-arrow-btn" id="nextBtn" aria-label="Next">
+      <button class="nav-arrow-btn" id="nextBtn" aria-label="Redo" disabled>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
              stroke="currentColor" stroke-width="2"
              stroke-linecap="round" stroke-linejoin="round">
@@ -211,6 +211,7 @@
     let categoryFilters  = new Set();
     let nextIndex        = 0;
     let rollHistory      = [];
+    let redoHistory      = [];
     const FADE_MS = 700;
     let   isFading = false;
 
@@ -369,6 +370,11 @@
       </div>`;
     }
 
+    function syncRedoBtn() {
+      const btn = document.getElementById('nextBtn');
+      if (btn) btn.disabled = redoHistory.length === 0;
+    }
+
     // ── Render all 5 slots ─────────────────────────────────────────────
     function renderSlots(animate) {
       const track     = document.getElementById('productsGrid');
@@ -423,6 +429,8 @@
       slotTagLocks = [{}, {}, {}, {}, {}];
       nextIndex    = Math.min(5, filteredResults.length);
       rollHistory  = [];
+      redoHistory  = [];
+      syncRedoBtn();
       renderSlots(true);
     }
 
@@ -476,6 +484,10 @@
       );
       if (slotsToReplace.size === 0) return;
       isFading = true;
+
+      // New roll clears redo history synchronously
+      redoHistory = [];
+      syncRedoBtn();
 
       document.getElementById('productsGrid').querySelectorAll('.product-card').forEach(el => {
         if (slotsToReplace.has(parseInt(el.dataset.slot, 10))) {
@@ -586,23 +598,56 @@
       if (rollHistory.length === 0 || isFading) return;
       isFading = true;
 
-      const unlockedIndices = new Set(
-        slotProducts.reduce((acc, p, i) => { if (p && !slotLocked[i]) acc.push(i); return acc; }, [])
-      );
+      // Mutate stacks and update button SYNCHRONOUSLY before any await
+      const snap = rollHistory.pop();
+      redoHistory.push({
+        slotProducts: [...slotProducts],
+        slotLocked:   [...slotLocked],
+        slotTagLocks: slotTagLocks.map(l => ({...l})),
+        nextIndex,
+      });
+      syncRedoBtn();
+
       document.getElementById('productsGrid').querySelectorAll('.product-card').forEach(el => {
-        if (unlockedIndices.has(parseInt(el.dataset.slot, 10))) {
-          el.style.transition = 'opacity 350ms linear';
-          el.style.opacity    = '0';
-        }
+        el.style.transition = 'opacity 350ms linear';
+        el.style.opacity    = '0';
       });
       await new Promise(r => setTimeout(r, 350));
 
-      const snap   = rollHistory.pop();
       slotProducts = snap.slotProducts;
       slotLocked   = snap.slotLocked;
       slotTagLocks = snap.slotTagLocks;
       nextIndex    = snap.nextIndex;
-      renderSlots(unlockedIndices);
+      renderSlots();
+      setTimeout(() => { isFading = false; }, 700);
+    }
+
+    // ── Redo the last Undo (→ arrow) ───────────────────────────────────
+    async function doRedo() {
+      if (redoHistory.length === 0 || isFading) return;
+      isFading = true;
+
+      // Mutate stacks and update button SYNCHRONOUSLY before any await
+      const snap = redoHistory.pop();
+      rollHistory.push({
+        slotProducts: [...slotProducts],
+        slotLocked:   [...slotLocked],
+        slotTagLocks: slotTagLocks.map(l => ({...l})),
+        nextIndex,
+      });
+      syncRedoBtn();
+
+      document.getElementById('productsGrid').querySelectorAll('.product-card').forEach(el => {
+        el.style.transition = 'opacity 350ms linear';
+        el.style.opacity    = '0';
+      });
+      await new Promise(r => setTimeout(r, 350));
+
+      slotProducts = snap.slotProducts;
+      slotLocked   = snap.slotLocked;
+      slotTagLocks = snap.slotTagLocks;
+      nextIndex    = snap.nextIndex;
+      renderSlots();
       setTimeout(() => { isFading = false; }, 700);
     }
 
@@ -620,7 +665,7 @@
     // ROLL / arrows / spacebar
     document.getElementById('rollBtn').addEventListener('click', doRoll);
     document.getElementById('prevBtn').addEventListener('click', doUndo);
-    document.getElementById('nextBtn').addEventListener('click', doRoll);
+    document.getElementById('nextBtn').addEventListener('click', doRedo);
     document.addEventListener('keydown', function (e) {
       if (e.code === 'Space' && !e.target.matches('input, textarea, [contenteditable]')) {
         e.preventDefault();
@@ -645,6 +690,8 @@
         slotTagLocks[slot] = {};
         compactSlots();
         rollHistory = [];
+        redoHistory = [];
+        syncRedoBtn();
         renderSlots();
         return;
       }
@@ -946,6 +993,8 @@
       slotTagLocks = [{}, {}, {}, {}, {}];
       nextIndex    = Math.min(5, filteredResults.length);
       rollHistory  = [];
+      redoHistory  = [];
+      syncRedoBtn();
       renderSlots();
 
       track.style.transition = 'opacity 350ms linear';
