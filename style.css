@@ -706,7 +706,7 @@ body {
   border-radius: var(--card-radius);
   opacity: 0;
   transition: opacity 0.3s ease;
-  padding: 10px 10px 10px;
+  padding: 6px 10px 10px;
   color: #fffaf5;
 }
 
