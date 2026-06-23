@@ -617,16 +617,8 @@
         ? `<button class="cg-explore-lock-btn persistent-lock" data-slot="${slotIdx}" aria-label="Unlock">${LOCK_CLOSED_SVG}</button>`
         : '';
 
-      const persistDismiss = `<button class="persistent-dismiss cg-explore-dismiss-btn" data-slot="${slotIdx}" aria-label="Remove">
-        <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-          <line x1="1" y1="1" x2="11" y2="11" stroke="#fffaf5" stroke-width="1.5" stroke-linecap="round"/>
-          <line x1="11" y1="1" x2="1" y2="11" stroke="#fffaf5" stroke-width="1.5" stroke-linecap="round"/>
-        </svg>
-      </button>`;
-
       return `<div class="product-card${isLocked ? ' is-locked' : ''}" data-id="${product.id}" data-slot="${slotIdx}">
         <img class="product-img" src="${imgSrc}" alt="${nameEsc}" loading="lazy">
-        ${persistDismiss}
         ${persistBadge}
         <div class="card-overlay">
           <div class="overlay-top">

@@ -728,6 +728,26 @@ body {
 .overlay-top > *:first-child { justify-self: start; }
 .overlay-top > *:last-child  { justify-self: end; }
 
+/* Keep dots grid in the center column even when X/lock are absolute */
+.overlay-top .dots-grid { grid-column: 2; }
+
+/* X button: absolute on card so position matches across all pages */
+.card-overlay .close-btn {
+  position: absolute;
+  top: 9px;
+  left: 9px;
+}
+
+/* Lock buttons inside overlay: match the persistent-lock's exact coordinates */
+.card-overlay .cg-lock-btn:not(.persistent-lock),
+.card-overlay .cg-explore-lock-btn:not(.persistent-lock),
+.card-overlay .slot-lock-btn:not(.persistent-lock) {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  margin-right: 0;
+}
+
 .close-btn {
   background: none;
   border: none;
