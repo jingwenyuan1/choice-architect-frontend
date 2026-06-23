@@ -28,12 +28,11 @@
   </header>
 
   <div class="outfit-detail-header">
-    <div class="edit-name-container wl-title-container">
-      <h1 class="outfit-detail-heading" id="wishlistTitle"></h1>
-      <button class="wl-rename-pencil" id="wlRenamePencil" aria-label="Rename wishlist">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+    <div class="edit-name-container">
+      <input type="text" class="cg-name-input" id="wishlistTitle" placeholder="New Wishlist" autocomplete="off" spellcheck="false">
+      <button class="edit-name-pencil" id="wlRenamePencil" aria-label="Rename wishlist">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
         </svg>
       </button>
     </div>
@@ -157,69 +156,62 @@
 
     loadWishlist();
 
+    const titleInput = document.getElementById('wishlistTitle');
+
     if (wishlist) {
-      const titleEl = document.getElementById('wishlistTitle');
-      titleEl.textContent = wishlist.name || 'New Wishlist';
+      titleInput.value = wishlist.name || '';
       document.title = (wishlist.name || 'New Wishlist') + ' — The Choice Architect';
     } else {
       document.title = 'Wishlist — The Choice Architect';
     }
 
-    // ── Rename wishlist ─────────────────────────────────────────────────
-    function measureTextWidth(text, font) {
-      const c = measureTextWidth._c || (measureTextWidth._c = document.createElement('canvas'));
-      const ctx = c.getContext('2d');
-      ctx.font = font;
-      return ctx.measureText(text).width;
-    }
+    // ── Title auto-resize ───────────────────────────────────────────────
+    (function () {
+      const canvas = document.createElement('canvas');
+      const ctx    = canvas.getContext('2d');
 
-    function startRename() {
+      function getMaxWidth() {
+        const header = document.querySelector('.outfit-detail-header');
+        const right  = document.querySelector('.coll-header-actions');
+        if (!header || !right) return window.innerWidth / 2;
+        return header.getBoundingClientRect().width - right.getBoundingClientRect().width - 48;
+      }
+
+      function resizeTitle() {
+        const cs = window.getComputedStyle(titleInput);
+        ctx.font = cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+        const text = titleInput.value || titleInput.placeholder;
+        const ideal = Math.ceil(ctx.measureText(text).width) + 16;
+        titleInput.style.width = Math.min(getMaxWidth(), Math.max(120, ideal)) + 'px';
+      }
+
+      titleInput.addEventListener('input', resizeTitle);
+      window.addEventListener('resize', resizeTitle);
+      requestAnimationFrame(resizeTitle);
+    })();
+
+    // ── Pencil: select all; kebab rename: focus + select ───────────────
+    document.getElementById('wlRenamePencil').addEventListener('click', function () {
+      titleInput.focus();
+      titleInput.select();
+    });
+    document.getElementById('renameWlBtn').addEventListener('click', function () {
       kebabDropdown.classList.remove('is-open');
-      const nameEl = document.getElementById('wishlistTitle');
-      if (document.querySelector('.edit-name-input')) return;
-      const currentName = nameEl.textContent.trim() === 'New Wishlist' && !wishlist?.name
-        ? '' : nameEl.textContent.trim();
-      const style = window.getComputedStyle(nameEl);
-      const font  = style.fontSize + ' ' + style.fontFamily;
-      const MAX_W = Math.floor(window.innerWidth / 3);
-      const MIN_W = 120;
+      titleInput.focus();
+      titleInput.select();
+    });
 
-      const input = document.createElement('input');
-      input.type      = 'text';
-      input.value     = currentName;
-      input.className = 'edit-name-input';
-
-      function resize() {
-        const w = measureTextWidth(input.value || input.placeholder, font);
-        input.style.width = Math.min(MAX_W, Math.max(MIN_W, Math.ceil(w) + 20)) + 'px';
-      }
-      resize();
-      input.addEventListener('input', resize);
-
-      nameEl.replaceWith(input);
-      input.focus();
-      input.select();
-
-      function commit() {
-        const newName = input.value.trim() || 'New Wishlist';
-        const ws = getWishlists();
-        const wl = ws.find(w => w.id === wishlistId);
-        if (wl && newName !== wl.name) { wl.name = newName; saveWishlists(ws); loadWishlist(); }
-        nameEl.textContent = newName;
-        document.title = newName + ' — The Choice Architect';
-        if (input.parentNode) input.replaceWith(nameEl);
-      }
-
-      input.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter')  { e.preventDefault(); commit(); }
-        if (e.key === 'Escape') { if (input.parentNode) input.replaceWith(nameEl); }
-      });
-      input.addEventListener('blur', commit);
-    }
-
-    document.getElementById('wishlistTitle').addEventListener('click', startRename);
-    document.getElementById('wlRenamePencil').addEventListener('click', startRename);
-    document.getElementById('renameWlBtn').addEventListener('click', startRename);
+    // ── Auto-save on blur / Enter ───────────────────────────────────────
+    titleInput.addEventListener('blur', function () {
+      const newName = this.value.trim() || 'New Wishlist';
+      const ws = getWishlists();
+      const wl = ws.find(w => w.id === wishlistId);
+      if (wl && newName !== wl.name) { wl.name = newName; saveWishlists(ws); loadWishlist(); }
+      document.title = newName + ' — The Choice Architect';
+    });
+    titleInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); this.blur(); }
+    });
 
     // ── Build one card ──────────────────────────────────────────────────
     function buildCardHTML(product) {

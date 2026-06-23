@@ -720,10 +720,13 @@ body {
 
 /* Top controls row: ×, dots, lock */
 .overlay-top {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
 }
+
+.overlay-top > *:first-child { justify-self: start; }
+.overlay-top > *:last-child  { justify-self: end; }
 
 .close-btn {
   background: none;
@@ -747,8 +750,6 @@ body {
   grid-template-columns: repeat(3, 3px);
   grid-template-rows: repeat(2, 3px);
   gap: 2px;
-  position: relative;
-  top: -7px;
   padding: 2px;
   margin: -2px;
   cursor: grab;
@@ -1610,6 +1611,7 @@ body {
 
 .cg-name-input:focus {
   outline: none;
+  text-decoration: none;
 }
 
 .cg-name-input::placeholder {
@@ -1871,31 +1873,12 @@ body {
   align-items: center;
 }
 
-.edit-name-container:hover .edit-name-pencil,
-.wl-title-container:hover .wl-rename-pencil {
+.edit-name-container:hover .edit-name-pencil {
   opacity: 0.55;
 }
 
-.edit-name-pencil:hover,
-.wl-rename-pencil:hover {
+.edit-name-pencil:hover {
   opacity: 1 !important;
-}
-
-.wl-rename-pencil {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--dark-mid);
-  padding: 4px;
-  opacity: 0;
-  transition: opacity 0.15s;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-}
-
-.wl-title-container .outfit-detail-heading {
-  cursor: text;
 }
 
 .edit-name-input {

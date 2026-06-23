@@ -1783,20 +1783,29 @@
       input.select();
     });
 
-    // Auto-resize the input to match its text content
+    // Auto-resize the input to match its text content, capped before right-side elements
     (function () {
       const input  = document.getElementById('cgCollectionName');
       const canvas = document.createElement('canvas');
       const ctx    = canvas.getContext('2d');
 
+      function getMaxWidth() {
+        const header = document.querySelector('.outfit-detail-header');
+        const right  = document.querySelector('.attr-search-section');
+        if (!header || !right) return window.innerWidth / 2;
+        return header.getBoundingClientRect().width - right.getBoundingClientRect().width - 48;
+      }
+
       function resizeName() {
         const cs = window.getComputedStyle(input);
         ctx.font = cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
         const text = input.value || input.placeholder;
-        input.style.width = Math.max(120, Math.ceil(ctx.measureText(text).width) + 16) + 'px';
+        const ideal = Math.ceil(ctx.measureText(text).width) + 16;
+        input.style.width = Math.min(getMaxWidth(), Math.max(120, ideal)) + 'px';
       }
 
       input.addEventListener('input', resizeName);
+      window.addEventListener('resize', resizeName);
       requestAnimationFrame(resizeName);
     })();
 
