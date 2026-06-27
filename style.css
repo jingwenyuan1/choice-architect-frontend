@@ -904,7 +904,7 @@ body {
   justify-content: center;
   flex: 1;
   height: 30px;
-  max-width: 90px;
+  max-width: 75px;
   padding: 0 14px;
   border: none;
   border-radius: 10px;
@@ -925,8 +925,8 @@ body {
 
 /* Save button */
 .save-btn {
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
   border-radius: 10px;
   border: none;
   background: #EFEEE6;
