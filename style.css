@@ -852,39 +852,6 @@ body {
   gap: 4px;
 }
 
-/* Product name */
-.product-name {
-  font-family: 'PlantinMTProBold', serif;
-  font-size: 17px;
-  letter-spacing: 0;
-  line-height: 1.2;
-  color: #F6FAFF;
-  margin-bottom: 2px;
-}
-
-/* Brand, price/rating, color, material */
-.product-brand,
-.product-price-rating,
-.product-detail,
-.product-rating {
-  font-family: 'Manrope-Regular', sans-serif;
-  font-size: 13px;
-  letter-spacing: 0;
-  line-height: 1.2;
-  color: #F6FAFF;
-}
-
-.product-price-rating {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.product-rating {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-}
 
 /* Card footer — pinned to bottom of overlay */
 .card-footer {
@@ -1168,14 +1135,14 @@ body {
 .attr-row {
   display: flex;
   flex-direction: column;
-  padding: 7px 0;
+  padding: 3px 0;
   flex-shrink: 0;
 }
 
 .attr-row-empty {
   display: flex;
   flex-direction: column;
-  padding: 7px 0;
+  padding: 3px 0;
   flex-shrink: 0;
   visibility: hidden;
   /* same height as .attr-row — keeps spacing for bottom-anchoring */

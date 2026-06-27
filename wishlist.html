@@ -212,89 +212,91 @@
       if (e.key === 'Enter') { e.preventDefault(); this.blur(); }
     });
 
-    // ── Build one card ──────────────────────────────────────────────────
+    // ── Build tag rows (no lock buttons) ──────────────────────────────
     function buildTagRows(product) {
       const t = product && product.tags;
-      if (!t || typeof t !== 'object') return '';
       const _DESIGN_LABEL = {
         fit: 'Fit', length: 'Length', sleeve_length: 'Sleeve Length',
         neckline: 'Neckline', rise: 'Rise',
         heel_height: 'Heel Height', heel_type: 'Heel Type',
       };
-      const rows = [];
-      if (t.color) {
+      const attrs = [];
+      if (t && t.color) {
         const vals = Array.isArray(t.color) ? t.color : [t.color];
-        if (vals.length) rows.push(`<div class="product-tag-row"><span class="product-detail">Color: ${vals.join(', ')}</span></div>`);
+        if (vals.length) attrs.push({ label: 'Color', value: vals.join(', ') });
       }
-      if (t.material) {
+      if (t && t.material) {
         const m = t.material;
-        rows.push(`<div class="product-tag-row"><span class="product-detail">Material: ${m.charAt(0).toUpperCase() + m.slice(1)}</span></div>`);
+        attrs.push({ label: 'Material', value: m.charAt(0).toUpperCase() + m.slice(1) });
       }
-      const d = t.design;
+      const d = t && t.design;
       if (d) {
         if (typeof d === 'object' && !Array.isArray(d)) {
           for (const [k, v] of Object.entries(d)) {
             const label = _DESIGN_LABEL[k] || (k.charAt(0).toUpperCase() + k.slice(1).replace(/_/g, ' '));
-            const vals  = Array.isArray(v) ? v : [v];
-            rows.push(`<div class="product-tag-row"><span class="product-detail">${label}: ${vals.join(', ')}</span></div>`);
+            attrs.push({ label, value: (Array.isArray(v) ? v : [v]).join(', ') });
           }
-        } else if (Array.isArray(d)) {
-          rows.push(`<div class="product-tag-row"><span class="product-detail">Design: ${d.join(', ')}</span></div>`);
-        } else if (typeof d === 'string') {
-          rows.push(`<div class="product-tag-row"><span class="product-detail">Design: ${d}</span></div>`);
+        } else {
+          attrs.push({ label: 'Design', value: (Array.isArray(d) ? d : [d]).join(', ') });
         }
       }
-      if (t.pattern) {
-        rows.push(`<div class="product-tag-row"><span class="product-detail">Pattern: ${t.pattern}</span></div>`);
-      }
-      if (t.occasion) {
+      if (t && t.pattern) attrs.push({ label: 'Pattern', value: t.pattern });
+      if (t && t.occasion) {
         const vals = Array.isArray(t.occasion) ? t.occasion : [t.occasion];
-        if (vals.length) rows.push(`<div class="product-tag-row"><span class="product-detail">Occasion: ${vals.join(', ')}</span></div>`);
+        if (vals.length) attrs.push({ label: 'Occasion', value: vals.join(', ') });
       }
-      return rows.join('');
+      const MAX_VISIBLE = 5;
+      const parts = [];
+      if (attrs.length <= MAX_VISIBLE) {
+        for (let i = 0; i < MAX_VISIBLE - attrs.length; i++) {
+          parts.push(`<div class="attr-row-empty"><div class="attr-label">&nbsp;</div><div class="attr-value-row"><span class="attr-value">&nbsp;</span></div></div>`);
+          parts.push(`<div class="attr-divider"></div>`);
+        }
+      }
+      attrs.forEach((attr, i) => {
+        parts.push(`<div class="attr-row"><div class="attr-label">${attr.label}</div><div class="attr-value-row"><span class="attr-value">${attr.value}</span></div></div>`);
+        if (i < attrs.length - 1) parts.push(`<div class="attr-divider"></div>`);
+      });
+      return parts.join('');
     }
 
     function buildCardHTML(product) {
       const imgSrc    = product.image_url;
       const nameEsc   = (product.name || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
-      const priceText = product.price != null
-        ? '$' + Number(product.price).toFixed(2)
-        : '$Price';
+      const priceText = product.price != null ? '$' + Number(product.price).toFixed(2) : '$Price';
       const href      = product.link || '#';
       const linkAttrs = product.link ? ' target="_blank" rel="noopener"' : '';
       const tagRows   = buildTagRows(product);
 
-      return `<div class="product-card" data-id="${product.id}">
-        <img class="product-img" src="${imgSrc}" alt="${nameEsc}" loading="lazy">
-        <div class="card-overlay">
-          <div class="overlay-top">
-            <button class="close-btn wl-remove-btn" aria-label="Remove from wishlist" data-id="${product.id}">
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                <line x1="1" y1="1" x2="11" y2="11" stroke="#fffaf5" stroke-width="1.5" stroke-linecap="round"/>
-                <line x1="11" y1="1" x2="1" y2="11" stroke="#fffaf5" stroke-width="1.5" stroke-linecap="round"/>
-              </svg>
-            </button>
-            <div class="dots-grid">
-              <div class="dot"></div><div class="dot"></div><div class="dot"></div>
-              <div class="dot"></div><div class="dot"></div><div class="dot"></div>
-            </div>
-            <div style="width:24px;"></div>
-          </div>
-          <div class="card-info">
-            <div class="card-info-frozen">
-              <h3 class="product-name">${nameEsc}</h3>
-              <span class="product-brand">Brand name</span>
-              <div class="product-price-rating">
-                <span>${priceText}</span>
-                <span class="product-rating">${STAR_SVG} 5.0</span>
+      return `<div class="product-slot-wrapper" data-id="${product.id}">
+        <div class="product-card" data-id="${product.id}">
+          <img class="product-img" src="${imgSrc}" alt="${nameEsc}" loading="lazy">
+          <div class="card-overlay">
+            <div class="overlay-top">
+              <button class="close-btn wl-remove-btn" aria-label="Remove from wishlist" data-id="${product.id}">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                  <line x1="1" y1="1" x2="11" y2="11" stroke="#efeee6" stroke-width="1.5" stroke-linecap="round"/>
+                  <line x1="11" y1="1" x2="1" y2="11" stroke="#efeee6" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+              </button>
+              <div class="dots-grid">
+                <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                <div class="dot"></div><div class="dot"></div><div class="dot"></div>
               </div>
+              <div style="width:24px;"></div>
             </div>
-            <div class="card-attrs-scroll">${tagRows}</div>
+            <div class="card-info">
+              <div class="card-attrs-scroll">${tagRows}</div>
+            </div>
+            <div class="card-footer">
+              <a href="${href}"${linkAttrs} class="product-webpage-btn">Visit site</a>
+              <button class="save-btn" aria-label="Save" data-id="${product.id}">${SAVE_SVG}</button>
+            </div>
           </div>
-          <div class="card-footer">
-            <a href="${href}"${linkAttrs} class="product-webpage-btn">Product Webpage</a>
-            <button class="save-btn" aria-label="Save to outfit or wishlist" data-id="${product.id}">${SAVE_SVG}</button>
-          </div>
+        </div>
+        <div class="product-below-info">
+          <div class="product-name-below">${nameEsc}</div>
+          <div class="product-meta-below">Brand name &nbsp;·&nbsp; ${priceText} &nbsp;${STAR_SVG}&nbsp; 5.0</div>
         </div>
       </div>`;
     }
@@ -303,7 +305,7 @@
     function renderProducts() {
       const wrap     = document.getElementById('productsWrap');
       const noResult = document.getElementById('noResults');
-      wrap.querySelectorAll('.product-card').forEach(c => c.remove());
+      wrap.querySelectorAll('.product-slot-wrapper').forEach(c => c.remove());
       if (!wishlist || wishlist.products.length === 0) {
         noResult.style.display = 'block';
         return;
