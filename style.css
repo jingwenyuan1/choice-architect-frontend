@@ -811,6 +811,7 @@ body {
   gap: 2px;
   padding: 2px;
   margin: -2px;
+  margin-top: 4px;
   cursor: grab;
 }
 
@@ -2087,9 +2088,9 @@ body {
 ══════════════════════════════════════════════════════ */
 .search-icon-btn,
 .add-icon-btn {
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
   border: none;
   background: #EFEEE6;
   display: flex;
