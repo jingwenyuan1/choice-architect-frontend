@@ -703,7 +703,7 @@ body {
   font-family: 'LibreCaslonCondensed-SemiBold', serif;
   font-size: 17px;
   color: #2d5290;
-  margin-top: 15px;
+  margin-top: 20px;
   line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
@@ -717,7 +717,7 @@ body {
   display: flex;
   align-items: center;
   gap: 4px;
-  margin-top: 3px;
+  margin-top: 5px;
 }
 
 .product-img {
