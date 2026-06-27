@@ -227,13 +227,15 @@
     }
 
     // ── Icon SVGs ────────────────────────────────────────────────────────
-    const LOCK_CLOSED_SVG = `<svg width="18" height="18" viewBox="0 0 15 26" fill="none" aria-hidden="true"><rect x="0" y="11" width="15" height="13" rx="1.5" fill="#fffaf5"/><path d="M2.5,13 L2.5,8 A5,5 0 0 1 12.5,8 L12.5,12.5" stroke="#fffaf5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-    const LOCK_OPEN_SVG   = `<svg width="18" height="18" viewBox="0 0 15 26" fill="none" aria-hidden="true"><rect x="0" y="11" width="15" height="13" rx="1.5" fill="#fffaf5"/><path d="M2.5,7 A5,5 0 0 1 12.5,8 L12.5,12.5" stroke="#fffaf5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    const LOCK_CLOSED_SVG = `<svg width="18" height="18" viewBox="0 0 15 26" fill="none" aria-hidden="true"><rect x="0" y="11" width="15" height="13" rx="1.5" fill="#efeee6"/><path d="M2.5,13 L2.5,8 A5,5 0 0 1 12.5,8 L12.5,12.5" stroke="#efeee6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    const LOCK_OPEN_SVG   = `<svg width="18" height="18" viewBox="0 0 15 26" fill="none" aria-hidden="true"><rect x="0" y="11" width="15" height="13" rx="1.5" fill="#efeee6"/><path d="M2.5,7 A5,5 0 0 1 12.5,8 L12.5,12.5" stroke="#efeee6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
     const STAR_SVG        = `<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
-    // Save icon — matches search.html (product generator): outline bookmark, 16×16
-    const SAVE_SVG        = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>`;
+    // Save icon — outline bookmark, 20×20
+    const SAVE_SVG        = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>`;
     // Filled save icon — used for the persistent badge when slot is saved
-    const SAVE_SVG_FILLED = `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>`;
+    const SAVE_SVG_FILLED = `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>`;
+    const SEARCH_SVG      = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E1A0B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`;
+    const ADD_ICON_SVG    = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1E1A0B" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`;
 
 
     // ── Outfits helpers ──────────────────────────────────────────────
@@ -318,14 +320,15 @@
         const on = !!lock[field];
         return `<button class="icon-btn ${lockBtnClass}" data-tag-field="${field}" aria-label="${on ? 'Unlock' : 'Lock'}">${on ? LOCK_CLOSED_SVG : LOCK_OPEN_SVG}</button>`;
       };
-      const rows = [];
+      // Build ordered list of attrs: Color, Material, Design fields, Pattern, Occasion
+      const attrs = [];
       if (t.color) {
         const vals = Array.isArray(t.color) ? t.color : [t.color];
-        if (vals.length) rows.push(`<div class="product-tag-row"><span class="product-detail">Color: ${vals.join(', ')}</span>${btn('color')}</div>`);
+        if (vals.length) attrs.push({ label: 'Color', value: vals.join(', '), field: 'color' });
       }
       if (t.material) {
         const m = t.material;
-        rows.push(`<div class="product-tag-row"><span class="product-detail">Material: ${m.charAt(0).toUpperCase() + m.slice(1)}</span>${btn('material')}</div>`);
+        attrs.push({ label: 'Material', value: m.charAt(0).toUpperCase() + m.slice(1), field: 'material' });
       }
       const d = t.design;
       if (d) {
@@ -334,22 +337,55 @@
             const field = 'design.' + k;
             const label = _DESIGN_LABEL[k] || (k.charAt(0).toUpperCase() + k.slice(1).replace(/_/g, ' '));
             const vals  = Array.isArray(v) ? v : [v];
-            rows.push(`<div class="product-tag-row"><span class="product-detail">${label}: ${vals.join(', ')}</span>${btn(field)}</div>`);
+            attrs.push({ label, value: vals.join(', '), field });
           }
         } else if (Array.isArray(d)) {
-          rows.push(`<div class="product-tag-row"><span class="product-detail">Design: ${d.join(', ')}</span>${btn('design')}</div>`);
+          attrs.push({ label: 'Design', value: d.join(', '), field: 'design' });
         } else if (typeof d === 'string') {
-          rows.push(`<div class="product-tag-row"><span class="product-detail">Design: ${d}</span>${btn('design')}</div>`);
+          attrs.push({ label: 'Design', value: d, field: 'design' });
         }
       }
       if (t.pattern) {
-        rows.push(`<div class="product-tag-row"><span class="product-detail">Pattern: ${t.pattern}</span>${btn('pattern')}</div>`);
+        attrs.push({ label: 'Pattern', value: t.pattern, field: 'pattern' });
       }
       if (t.occasion) {
         const vals = Array.isArray(t.occasion) ? t.occasion : [t.occasion];
-        if (vals.length) rows.push(`<div class="product-tag-row"><span class="product-detail">Occasion: ${vals.join(', ')}</span>${btn('occasion')}</div>`);
+        if (vals.length) attrs.push({ label: 'Occasion', value: vals.join(', '), field: 'occasion' });
       }
-      return rows.join('');
+
+      const MAX_VISIBLE = 5;
+      const parts = [];
+
+      if (attrs.length <= MAX_VISIBLE) {
+        // Bottom-anchor: pad top with empty rows
+        const emptyCount = MAX_VISIBLE - attrs.length;
+        for (let i = 0; i < emptyCount; i++) {
+          parts.push(`<div class="attr-row-empty"><div class="attr-label">&nbsp;</div><div class="attr-value-row"><span class="attr-value">&nbsp;</span></div></div>`);
+          parts.push(`<div class="attr-divider"></div>`);
+        }
+      }
+
+      attrs.forEach((attr, i) => {
+        if (i === 0 && attrs.length > MAX_VISIBLE) {
+          // No leading divider when scrollable
+        } else if (i === 0 && attrs.length <= MAX_VISIBLE) {
+          // Leading divider already handled by empty rows or none needed
+        } else {
+          // Divider between attrs (already appended after each empty row above)
+        }
+        parts.push(`<div class="attr-row">
+          <div class="attr-label">${attr.label}</div>
+          <div class="attr-value-row">
+            <span class="attr-value">${attr.value}</span>
+            ${btn(attr.field)}
+          </div>
+        </div>`);
+        if (i < attrs.length - 1) {
+          parts.push(`<div class="attr-divider"></div>`);
+        }
+      });
+
+      return parts.join('');
     }
 
     // ── State ────────────────────────────────────────────────────────────
@@ -500,44 +536,37 @@
       const linkAttrs = product.link ? ' target="_blank" rel="noopener"' : '';
       const tagRows   = buildTagRows(product, tagLockState, 'cg-tag-lock-btn');
 
-      return `<div class="product-card is-locked${isSaved ? ' is-saved' : ''}" data-slot-idx="${slotIdx}">
-        <img class="product-img" src="${imgSrc}" alt="${nameEsc}" loading="lazy">
-        <button class="persistent-lock" aria-label="Locked">${LOCK_CLOSED_SVG}</button>
-        <div class="card-overlay">
-          <div class="overlay-top">
-            <button class="close-btn cg-dismiss-btn" data-slot-idx="${slotIdx}" aria-label="Remove slot">
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                <line x1="1" y1="1" x2="11" y2="11" stroke="#fffaf5" stroke-width="1.5" stroke-linecap="round"/>
-                <line x1="11" y1="1" x2="1" y2="11" stroke="#fffaf5" stroke-width="1.5" stroke-linecap="round"/>
-              </svg>
-            </button>
-            <div class="dots-grid">
-              <div class="dot"></div><div class="dot"></div><div class="dot"></div>
-              <div class="dot"></div><div class="dot"></div><div class="dot"></div>
-            </div>
-            <button class="icon-btn cg-locked-unlock-btn" data-slot-idx="${slotIdx}" aria-label="Unlock">${LOCK_CLOSED_SVG}</button>
-          </div>
-          <div class="card-info">
-            <div class="card-info-frozen">
-              <h3 class="product-name">${nameEsc}</h3>
-              <span class="product-brand">Brand name</span>
-              <div class="product-price-rating">
-                <span>${priceText}</span>
-                <span class="product-rating">${STAR_SVG} 5.0</span>
+      return `<div class="product-slot-wrapper" data-slot-idx="${slotIdx}">
+        <div class="product-card is-locked${isSaved ? ' is-saved' : ''}" data-slot-idx="${slotIdx}">
+          <img class="product-img" src="${imgSrc}" alt="${nameEsc}" loading="lazy">
+          <button class="persistent-lock" aria-label="Locked">${LOCK_CLOSED_SVG}</button>
+          <div class="card-overlay">
+            <div class="overlay-top">
+              <button class="close-btn cg-dismiss-btn" data-slot-idx="${slotIdx}" aria-label="Remove slot">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                  <line x1="1" y1="1" x2="11" y2="11" stroke="#efeee6" stroke-width="1.5" stroke-linecap="round"/>
+                  <line x1="11" y1="1" x2="1" y2="11" stroke="#efeee6" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+              </button>
+              <div class="dots-grid">
+                <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                <div class="dot"></div><div class="dot"></div><div class="dot"></div>
               </div>
+              <button class="icon-btn cg-locked-unlock-btn" data-slot-idx="${slotIdx}" aria-label="Unlock">${LOCK_CLOSED_SVG}</button>
             </div>
-            <div class="card-attrs-scroll">${tagRows}</div>
-          </div>
-          <div class="card-footer-stack">
-            <div class="card-footer">
-              <button class="explore-more-btn" data-slot-idx="${slotIdx}">EXPLORE MORE</button>
-              <div style="width:27px;flex-shrink:0;"></div>
+            <div class="card-info">
+              <div class="card-attrs-scroll">${tagRows}</div>
             </div>
             <div class="card-footer">
-              <a href="${href}"${linkAttrs} class="product-webpage-btn">Product Webpage</a>
+              <a href="${href}"${linkAttrs} class="product-webpage-btn">Visit site</a>
+              <button class="search-icon-btn" data-slot-idx="${slotIdx}" aria-label="Explore more">${SEARCH_SVG}</button>
               <button class="save-btn cg-save-btn" data-slot-idx="${slotIdx}" aria-label="Save to outfit">${SAVE_SVG}</button>
             </div>
           </div>
+        </div>
+        <div class="product-below-info">
+          <div class="product-name-below">${nameEsc}</div>
+          <div class="product-meta-below">Brand name &nbsp;·&nbsp; ${priceText} &nbsp;${STAR_SVG}&nbsp; 5.0</div>
         </div>
       </div>`;
     }
@@ -577,44 +606,37 @@
         ? `<button class="cg-lock-btn persistent-lock" data-slot-idx="${slotIdx}" aria-label="Unlock">${LOCK_CLOSED_SVG}</button>`
         : '';
 
-      return `<div class="product-card${isLocked ? ' is-locked' : ''}${isSaved ? ' is-saved' : ''}" data-slot-idx="${slotIdx}">
-        <img class="product-img" src="${imgSrc}" alt="${nameEsc}" loading="lazy">
-        ${persistBadge}
-        <div class="card-overlay">
-          <div class="overlay-top">
-            <button class="close-btn cg-dismiss-btn" data-slot-idx="${slotIdx}" aria-label="Reset slot">
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                <line x1="1" y1="1" x2="11" y2="11" stroke="#fffaf5" stroke-width="1.5" stroke-linecap="round"/>
-                <line x1="11" y1="1" x2="1" y2="11" stroke="#fffaf5" stroke-width="1.5" stroke-linecap="round"/>
-              </svg>
-            </button>
-            <div class="dots-grid">
-              <div class="dot"></div><div class="dot"></div><div class="dot"></div>
-              <div class="dot"></div><div class="dot"></div><div class="dot"></div>
-            </div>
-            ${lockBtn}
-          </div>
-          <div class="card-info">
-            <div class="card-info-frozen">
-              <h3 class="product-name">${nameEsc}</h3>
-              <span class="product-brand">Brand name</span>
-              <div class="product-price-rating">
-                <span>${priceText}</span>
-                <span class="product-rating">${STAR_SVG} 5.0</span>
+      return `<div class="product-slot-wrapper" data-slot-idx="${slotIdx}">
+        <div class="product-card${isLocked ? ' is-locked' : ''}${isSaved ? ' is-saved' : ''}" data-slot-idx="${slotIdx}">
+          <img class="product-img" src="${imgSrc}" alt="${nameEsc}" loading="lazy">
+          ${persistBadge}
+          <div class="card-overlay">
+            <div class="overlay-top">
+              <button class="close-btn cg-dismiss-btn" data-slot-idx="${slotIdx}" aria-label="Reset slot">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                  <line x1="1" y1="1" x2="11" y2="11" stroke="#efeee6" stroke-width="1.5" stroke-linecap="round"/>
+                  <line x1="11" y1="1" x2="1" y2="11" stroke="#efeee6" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+              </button>
+              <div class="dots-grid">
+                <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                <div class="dot"></div><div class="dot"></div><div class="dot"></div>
               </div>
+              ${lockBtn}
             </div>
-            <div class="card-attrs-scroll">${tagRows}</div>
-          </div>
-          <div class="card-footer-stack">
-            <div class="card-footer">
-              <button class="explore-more-btn" data-slot-idx="${slotIdx}">EXPLORE MORE</button>
-              <div style="width:27px;flex-shrink:0;"></div>
+            <div class="card-info">
+              <div class="card-attrs-scroll">${tagRows}</div>
             </div>
             <div class="card-footer">
-              <a href="${href}"${linkAttrs} class="product-webpage-btn">Product Webpage</a>
+              <a href="${href}"${linkAttrs} class="product-webpage-btn">Visit site</a>
+              <button class="search-icon-btn" data-slot-idx="${slotIdx}" aria-label="Explore more">${SEARCH_SVG}</button>
               <button class="save-btn cg-save-btn" data-slot-idx="${slotIdx}" aria-label="Save to outfit">${SAVE_SVG}</button>
             </div>
           </div>
+        </div>
+        <div class="product-below-info">
+          <div class="product-name-below">${nameEsc}</div>
+          <div class="product-meta-below">Brand name &nbsp;·&nbsp; ${priceText} &nbsp;${STAR_SVG}&nbsp; 5.0</div>
         </div>
       </div>`;
     }
@@ -633,41 +655,37 @@
         ? `<button class="cg-explore-lock-btn persistent-lock" data-slot="${slotIdx}" aria-label="Unlock">${LOCK_CLOSED_SVG}</button>`
         : '';
 
-      return `<div class="product-card${isLocked ? ' is-locked' : ''}" data-id="${product.id}" data-slot="${slotIdx}">
-        <img class="product-img" src="${imgSrc}" alt="${nameEsc}" loading="lazy">
-        ${persistBadge}
-        <div class="card-overlay">
-          <div class="overlay-top">
-            <button class="close-btn cg-explore-dismiss-btn" aria-label="Remove" data-slot="${slotIdx}">
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                <line x1="1" y1="1" x2="11" y2="11" stroke="#fffaf5" stroke-width="1.5" stroke-linecap="round"/>
-                <line x1="11" y1="1" x2="1" y2="11" stroke="#fffaf5" stroke-width="1.5" stroke-linecap="round"/>
-              </svg>
-            </button>
-            <div class="dots-grid">
-              <div class="dot"></div><div class="dot"></div><div class="dot"></div>
-              <div class="dot"></div><div class="dot"></div><div class="dot"></div>
-            </div>
-            ${lockBtn}
-          </div>
-          <div class="card-info">
-            <div class="card-info-frozen">
-              <h3 class="product-name">${nameEsc}</h3>
-              <span class="product-brand">Brand name</span>
-              <div class="product-price-rating">
-                <span>${priceText}</span>
-                <span class="product-rating">${STAR_SVG} 5.0</span>
+      return `<div class="product-slot-wrapper" data-slot="${slotIdx}">
+        <div class="product-card${isLocked ? ' is-locked' : ''}" data-id="${product.id}" data-slot="${slotIdx}">
+          <img class="product-img" src="${imgSrc}" alt="${nameEsc}" loading="lazy">
+          ${persistBadge}
+          <div class="card-overlay">
+            <div class="overlay-top">
+              <button class="close-btn cg-explore-dismiss-btn" aria-label="Remove" data-slot="${slotIdx}">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                  <line x1="1" y1="1" x2="11" y2="11" stroke="#efeee6" stroke-width="1.5" stroke-linecap="round"/>
+                  <line x1="11" y1="1" x2="1" y2="11" stroke="#efeee6" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+              </button>
+              <div class="dots-grid">
+                <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                <div class="dot"></div><div class="dot"></div><div class="dot"></div>
               </div>
+              ${lockBtn}
             </div>
-            <div class="card-attrs-scroll">${tagRows}</div>
-          </div>
-          <div class="card-footer-stack">
-            <button class="add-product-btn" data-slot="${slotIdx}">ADD PRODUCT</button>
+            <div class="card-info">
+              <div class="card-attrs-scroll">${tagRows}</div>
+            </div>
             <div class="card-footer">
-              <a href="${href}"${linkAttrs} class="product-webpage-btn">Product Webpage</a>
+              <a href="${href}"${linkAttrs} class="product-webpage-btn">Visit site</a>
+              <button class="add-icon-btn" data-slot="${slotIdx}" aria-label="Add product">${ADD_ICON_SVG}</button>
               <button class="save-btn cg-explore-save-btn" data-slot="${slotIdx}" aria-label="Save to outfit">${SAVE_SVG}</button>
             </div>
           </div>
+        </div>
+        <div class="product-below-info">
+          <div class="product-name-below">${nameEsc}</div>
+          <div class="product-meta-below">Brand name &nbsp;·&nbsp; ${priceText} &nbsp;${STAR_SVG}&nbsp; 5.0</div>
         </div>
       </div>`;
     }
@@ -698,7 +716,7 @@
     // ── GENERATE ─────────────────────────────────────────────────────────
     function fadeOutChanging(indices) {
       const grid = document.getElementById('cgProductsGrid');
-      grid.querySelectorAll('[data-slot-idx]').forEach(el => {
+      grid.querySelectorAll(':scope > [data-slot-idx]').forEach(el => {
         if (indices.has(parseInt(el.dataset.slotIdx, 10))) {
           el.style.transition = 'opacity 350ms linear';
           el.style.opacity    = '0';
@@ -1205,8 +1223,8 @@
         return;
       }
 
-      // Explore More button
-      const exploreBtn = e.target.closest('.explore-more-btn');
+      // Search icon button (Explore More)
+      const exploreBtn = e.target.closest('.search-icon-btn');
       if (exploreBtn) {
         e.stopPropagation();
         const idx = parseInt(exploreBtn.dataset.slotIdx, 10);
@@ -1248,8 +1266,8 @@
         return;
       }
 
-      // ADD PRODUCT
-      const addBtn = e.target.closest('.add-product-btn');
+      // ADD PRODUCT (plus icon button)
+      const addBtn = e.target.closest('.add-icon-btn');
       if (addBtn) {
         e.stopPropagation();
         const slotIdx = parseInt(addBtn.dataset.slot, 10);

@@ -34,6 +34,13 @@
   font-style: normal;
 }
 
+@font-face {
+  font-family: 'LibreCaslonCondensed-SemiBold';
+  src: url('fonts/LibreCaslonCondensed-SemiBold.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
@@ -41,7 +48,7 @@
 }
 
 :root {
-  --cream: #faf0eb;
+  --cream: #f4f6f6;
   --dark: #31220c;
   --dark-mid: #4a3a35;
   --muted: #9a8880;
@@ -278,12 +285,12 @@ body {
   height: 27px;
   padding: 0 14px;
   background: transparent;
-  border: 1.3px solid #fffaf5;
+  border: 1.3px solid #F6FAFF;
   border-radius: 50px;
   font-family: 'Manrope-Regular', sans-serif;
   font-size: 12px;
   letter-spacing: 0;
-  color: #fffaf5;
+  color: #F6FAFF;
   text-transform: uppercase;
   cursor: pointer;
   white-space: nowrap;
@@ -316,7 +323,7 @@ body {
 .home-search-bar {
   display: flex;
   align-items: center;
-  background: #fffaf5;
+  background: #F6FAFF;
   border-radius: 50px;
   width: 100%;
   height: 9vh;
@@ -385,7 +392,7 @@ body {
 .results-search-bar {
   display: flex;
   align-items: center;
-  background: #fffaf5;
+  background: #F6FAFF;
   border-radius: 25px;
   width: 500px;
   height: 7vh;
@@ -529,7 +536,7 @@ body {
   font-family: 'Manrope-Regular', sans-serif;
   font-size: 14px;
   color: var(--dark);
-  background: #fffaf5;
+  background: #F6FAFF;
   outline: none;
 }
 
@@ -676,14 +683,41 @@ body {
   transition: opacity 0.3s ease;
 }
 
-.product-card {
+.product-slot-wrapper {
   flex: 0 0 clamp(220px, 18vw, 350px);
+  display: flex;
+  flex-direction: column;
+}
+
+.product-card {
+  width: 100%;
   height: clamp(320px, 26vw, 500px);
   position: relative;
   border-radius: var(--card-radius);
   overflow: hidden;
   cursor: default;
   background: #e8ddd8;
+}
+
+.product-name-below {
+  font-family: 'LibreCaslonCondensed-SemiBold', serif;
+  font-size: 17px;
+  color: #2d5290;
+  margin-top: 7px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.product-meta-below {
+  font-family: 'Manrope-Regular', sans-serif;
+  font-size: 12px;
+  color: #2d5290;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
 }
 
 .product-img {
@@ -700,14 +734,14 @@ body {
   inset: 0;
   background: linear-gradient(
     to bottom,
-    rgba(49, 34, 12, 0.40) 0%,
-    rgba(49, 34, 12, 0.70) 100%
+    rgba(30, 26, 11, 0.40) 0%,
+    rgba(30, 26, 11, 0.70) 100%
   );
   border-radius: var(--card-radius);
   opacity: 0;
   transition: opacity 0.3s ease;
   padding: 6px 10px 10px;
-  color: #fffaf5;
+  color: #efeee6;
 }
 
 .product-card:hover .card-overlay {
@@ -784,7 +818,7 @@ body {
   width: 3px;
   height: 3px;
   border-radius: 50%;
-  background: #fffaf5;
+  background: #efeee6;
   opacity: 0.85;
 }
 
@@ -792,14 +826,14 @@ body {
   background: none;
   border: none;
   cursor: pointer;
-  color: #fffaf5;
+  color: #efeee6;
   padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   opacity: 0.85;
   transition: opacity 0.15s;
-  margin-right: 3px;
+  margin-right: 0;
 }
 
 .icon-btn:hover { opacity: 1; }
@@ -823,7 +857,7 @@ body {
   font-size: 17px;
   letter-spacing: 0;
   line-height: 1.2;
-  color: #fffaf5;
+  color: #F6FAFF;
   margin-bottom: 2px;
 }
 
@@ -836,7 +870,7 @@ body {
   font-size: 13px;
   letter-spacing: 0;
   line-height: 1.2;
-  color: #fffaf5;
+  color: #F6FAFF;
 }
 
 .product-price-rating {
@@ -859,51 +893,54 @@ body {
   right: 10px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 6px;
+  justify-content: flex-start;
 }
 
-/* "PRODUCT WEBPAGE" button */
+/* "Visit site" button */
 .product-webpage-btn {
   display: inline-flex;
   align-items: center;
-  height: 27px;
+  justify-content: center;
+  flex: 1;
+  height: 34px;
   padding: 0 14px;
-  border: 1.3px solid #fffaf5;
-  border-radius: 50px;
+  border: none;
+  border-radius: 10px;
   font-family: 'Manrope-Regular', sans-serif;
-  font-size: 12px;
+  font-size: 14px;
   letter-spacing: 0;
-  color: #fffaf5;
+  color: #1E1A0B;
   text-decoration: none;
-  text-transform: uppercase;
-  background: transparent;
+  background: #EFEEE6;
+  cursor: pointer;
   transition: background 0.18s;
   white-space: nowrap;
 }
 
 .product-webpage-btn:hover {
-  background: rgba(255, 250, 245, 0.12);
+  background: #FFE570;
 }
 
-/* Save circle button */
+/* Save button */
 .save-btn {
-  width: 27px;
-  height: 27px;
-  border-radius: 50%;
-  border: 1.3px solid #fffaf5;
-  background: transparent;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: none;
+  background: #EFEEE6;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fffaf5;
+  color: #1E1A0B;
   padding: 0;
   flex-shrink: 0;
   transition: background 0.18s;
 }
 
 .save-btn:hover {
-  background: rgba(255, 250, 245, 0.12);
+  background: #FFE570;
 }
 
 /* ══════════════════════════════════════════════════════
@@ -926,7 +963,7 @@ body {
 .save-changes-btn {
   height: 42px;
   padding: 0 22px;
-  background: #fffaf5;
+  background: #F6FAFF;
   color: #31220c;
   border: none;
   border-radius: 50px;
@@ -1011,7 +1048,7 @@ body {
 
 .confirm-modal-confirm {
   background: var(--dark);
-  color: #fffaf5;
+  color: #F6FAFF;
 }
 
 .confirm-modal-cancel:hover,
@@ -1024,7 +1061,7 @@ body {
   height: 42px;
   border-radius: 50%;
   border: none;
-  background: #fffaf5;
+  background: #F6FAFF;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1093,26 +1130,17 @@ body {
 }
 
 /* ══════════════════════════════════════════════════════
-   PRODUCT CARD — FROZEN INFO + SCROLLABLE ATTRS
+   PRODUCT CARD — SCROLLABLE ATTRS
 ══════════════════════════════════════════════════════ */
-.card-info-frozen {
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
 .card-attrs-scroll {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  padding-top: 10px;
   display: flex;
   flex-direction: column;
-  gap: 9px;
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 250, 245, 0.3) transparent;
+  scrollbar-color: rgba(246, 250, 255, 0.3) transparent;
 }
 
 .card-attrs-scroll::-webkit-scrollbar {
@@ -1124,14 +1152,65 @@ body {
 }
 
 .card-attrs-scroll::-webkit-scrollbar-thumb {
-  background: rgba(255, 250, 245, 0.35);
+  background: rgba(246, 250, 255, 0.35);
   border-radius: 2px;
 }
 
-/* Outfit-generator cards have a two-row footer stack — need extra bottom clearance */
+/* ── Attribute rows ─────────────────────────────────── */
+.attr-divider {
+  height: 1px;
+  background: rgba(170, 170, 170, 0.5);
+  flex-shrink: 0;
+}
+
+.attr-row {
+  display: flex;
+  flex-direction: column;
+  padding: 7px 0;
+  flex-shrink: 0;
+}
+
+.attr-row-empty {
+  display: flex;
+  flex-direction: column;
+  padding: 7px 0;
+  flex-shrink: 0;
+  visibility: hidden;
+  /* same height as .attr-row — keeps spacing for bottom-anchoring */
+}
+
+.attr-label {
+  font-family: 'Manrope-Regular', sans-serif;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: #aaaaaa;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+  line-height: 1.2;
+}
+
+.attr-row-empty .attr-label {
+  visibility: hidden;
+}
+
+.attr-value-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.attr-value {
+  font-family: 'Manrope-Regular', sans-serif;
+  font-size: 12px;
+  letter-spacing: 0;
+  color: #f6faff;
+  line-height: 1.2;
+}
+
+/* Outfit-generator cards have a single-row footer — bottom clearance for 34px row + padding */
 #cgProductsGrid .card-info,
 #exploreGrid .card-info {
-  bottom: 85px;
+  bottom: 54px;
 }
 
 /* ── Tag chips ─────────────────────────────────────────────────────── */
@@ -1353,7 +1432,7 @@ body {
   flex: 1;
   border: none;
   border-radius: 51px;
-  background: #fffaf5;
+  background: #F6FAFF;
   font-family: 'Manrope-Regular', sans-serif;
   font-size: 15px;
   letter-spacing: 0;
@@ -1377,7 +1456,7 @@ body {
   border: none;
   background: #6e6558;
   cursor: pointer;
-  color: #fffaf5;
+  color: #F6FAFF;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1460,7 +1539,7 @@ body {
 .save-modal-cancel-btn {
   flex: 1;
   height: 44px;
-  background: #fffaf5;
+  background: #F6FAFF;
   border: none;
   border-radius: 50px;
   font-family: 'Manrope-Regular', sans-serif;
@@ -1852,7 +1931,7 @@ body {
 }
 
 .picker-cat-row.is-selected {
-  background: #fffaf5;
+  background: #F6FAFF;
   color: var(--dark);
 }
 
@@ -1872,7 +1951,7 @@ body {
   border-radius: 50%;
   border: none;
   background: #736a5c;
-  color: #fffaf5;
+  color: #F6FAFF;
   cursor: pointer;
   display: none;
   align-items: center;
@@ -1973,7 +2052,7 @@ body {
   border-radius: 50%;
   border: none;
   background: #736a5c;
-  color: #fffaf5;
+  color: #F6FAFF;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -2003,62 +2082,27 @@ body {
 
 
 /* ══════════════════════════════════════════════════════
-   EXPLORE MORE / ADD PRODUCT BUTTONS
-   Same height, border-radius, and font-size as .product-webpage-btn
+   SEARCH / ADD ICON BUTTONS (outfit generator & explore)
 ══════════════════════════════════════════════════════ */
-.explore-more-btn,
-.add-product-btn {
-  display: inline-flex;
+.search-icon-btn,
+.add-icon-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: none;
+  background: #EFEEE6;
+  display: flex;
   align-items: center;
   justify-content: center;
-  height: 27px;
-  width: calc(100% - 35px);
-  padding: 0 14px;
-  border: 1.3px solid #fffaf5;
-  border-radius: 50px;
-  font-family: 'Manrope-Regular', sans-serif;
-  font-size: 12px;
-  letter-spacing: 0;
-  color: #fffaf5;
-  text-transform: uppercase;
-  background: transparent;
   cursor: pointer;
+  flex-shrink: 0;
+  padding: 0;
   transition: background 0.18s;
-  white-space: nowrap;
 }
 
-.explore-more-btn:hover,
-.add-product-btn:hover {
-  background: rgba(255, 250, 245, 0.12);
-}
-
-/* ══════════════════════════════════════════════════════
-   CARD FOOTER STACK
-   Stacks EXPLORE MORE (or ADD PRODUCT) above the
-   PRODUCT WEBPAGE + save-btn row, keeping the whole
-   block pinned to the card bottom exactly like .card-footer.
-══════════════════════════════════════════════════════ */
-.card-footer-stack {
-  position: absolute;
-  bottom: 10px;
-  left: 10px;
-  right: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-/* Inner footer row is no longer absolute — the stack handles positioning */
-.card-footer-stack > .card-footer {
-  position: static;
-  justify-content: flex-start;
-  gap: 8px;
-}
-
-/* PRODUCT WEBPAGE stretches to fill the space left of the save button, text centered */
-.card-footer-stack > .card-footer > .product-webpage-btn {
-  flex: 1;
-  justify-content: center;
+.search-icon-btn:hover,
+.add-icon-btn:hover {
+  background: #FFE570;
 }
 
 /* ══════════════════════════════════════════════════════
