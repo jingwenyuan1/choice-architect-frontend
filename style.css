@@ -703,7 +703,7 @@ body {
   font-family: 'LibreCaslonCondensed-SemiBold', serif;
   font-size: 17px;
   color: #2d5290;
-  margin-top: 7px;
+  margin-top: 15px;
   line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
@@ -717,7 +717,7 @@ body {
   display: flex;
   align-items: center;
   gap: 4px;
-  margin-top: 2px;
+  margin-top: 3px;
 }
 
 .product-img {
@@ -839,10 +839,10 @@ body {
 
 .icon-btn:hover { opacity: 1; }
 
-/* Product info — positioned at 1/3 from card top */
+/* Product info */
 .card-info {
   position: absolute;
-  top: 30%;
+  top: 60px;
   left: 15px;
   right: 10px;
   bottom: 60px;
@@ -1309,8 +1309,6 @@ body {
 .tag-lock-btn:hover {
   opacity: 1;
 }
-
-
 
 /* ══════════════════════════════════════════════════════
    PERSISTENT LOCK BADGE
@@ -2100,6 +2098,7 @@ body {
   flex-shrink: 0;
   padding: 0;
   transition: background 0.18s;
+  margin-left: auto;
 }
 
 .search-icon-btn:hover,
