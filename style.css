@@ -703,7 +703,7 @@ body {
   font-family: 'LibreCaslonCondensed-SemiBold', serif;
   font-size: 17px;
   color: #2d5290;
-  margin-top: 20px;
+  margin-top: 18px;
   line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
@@ -717,7 +717,7 @@ body {
   display: flex;
   align-items: center;
   gap: 4px;
-  margin-top: 5px;
+  margin-top: 4px;
 }
 
 .product-img {
@@ -1155,8 +1155,8 @@ body {
   letter-spacing: 0.06em;
   color: #aaaaaa;
   text-transform: uppercase;
-  margin-bottom: 2px;
-  line-height: 1.2;
+  margin-bottom: 0px;
+  line-height: 1;
 }
 
 .attr-row-empty .attr-label {
@@ -1174,7 +1174,7 @@ body {
   font-size: 12px;
   letter-spacing: 0;
   color: #f6faff;
-  line-height: 1.2;
+  line-height: 1;
 }
 
 /* Outfit-generator cards have a single-row footer — bottom clearance for 34px row + padding */
